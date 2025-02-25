@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0be917dfcb7eade4b95d2b0126db7b40, type: 3}
+  m_Name: Floresta
+  m_EditorClassIdentifier: 
+  biomeType: 1
+  highFrequencyScale: 0.02
+  highFrequencyAmplitude: 10
+  lowFrequencyScale: 0.0025
+  lowFrequencyAmplitude: 70
+  terrainLayerDefinitions:
+  - terrainLayer: {fileID: 8574412962073106934, guid: b0335f68f79e8fe41bfac8cdd1777d92, type: 2}
+    minHeight: 40.5
+    maxHeight: 1000
+    minSlope: 0
+    maxSlope: 0
+  - terrainLayer: {fileID: 8574412962073106934, guid: d743aa18637d1ae41b8f65b575bd6307, type: 2}
+    minHeight: 0
+    maxHeight: 40.5
+    minSlope: 0
+    maxSlope: 90
+  grassDetailDefinition:
+    grassRenderMode: 1
+    grassPrefab: {fileID: 0}
+    grassTexture: {fileID: 2800000, guid: fa10a1004679e1e4d90320a099030997, type: 3}
+    targetLayerIndex: 0
+    threshold: 0.5
+    grassMapDensity: 400
+    minWidth: 0.5
+    maxWidth: 2
+    minHeight: 0.5
+    maxHeight: 2
+    noiseSpread: 0.1
+    healthyColor: {r: 0.169435, g: 0.2264151, b: 0.14204344, a: 0}
+    dryColor: {r: 0.16862746, g: 0.227451, b: 0.14117648, a: 0}
+    grassPrototypeDensity: 2

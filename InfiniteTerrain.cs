@@ -25,12 +25,15 @@ public class InfiniteTerrain : MonoBehaviour
     public Transform player;
 
     [Header("Configurações do Terreno")]
+    [Range(256, 1024)]
     public int chunkSize = 512;
+    [Range(257, 1025)]
     public int terrainResolution = 513; // (2^n) + 1
-    public float terrainHeight = 50f;
+    public float terrainHeight = 100f;
     public int seed = 42;
 
     [Header("Configurações do Perlin Noise (Fallback)")]
+    [Range(0.001f, 0.1f)]
     public float highFrequencyScale = 0.02f;
     public float highFrequencyAmplitude = 10f;
     public float lowFrequencyScale = 0.005f;
@@ -45,13 +48,12 @@ public class InfiniteTerrain : MonoBehaviour
     [Header("Distância de Renderização")]
     public int renderDistance = 2;
 
-    // Essa propriedade global pode servir de fallback, se necessário.
-    [Header("Camadas de Terreno (Procedural)")]
-    public TerrainLayerDefinition[] terrainLayerDefinitions;
+   // [Header("Camadas de Terreno (Procedural)")]
+ //   public TerrainLayerDefinition[] terrainLayerDefinitions;
 
-    [Header("Detalhes de Grama")]
-    [Tooltip("Definição para espalhar grama em uma TerrainLayer específica.")]
-    public GrassDetailDefinition grassDetailDefinition;
+    //[Header("Detalhes de Grama")]
+    //[Tooltip("Definição para espalhar grama em uma TerrainLayer específica.")]
+    //public GrassDetailDefinition grassDetailDefinition;
     [Tooltip("Resolução do detail map (quanto maior, mais detalhes).")]
     public int detailResolution = 256;
     public int detailResolutionPerPacht = 16;
@@ -65,18 +67,17 @@ public class InfiniteTerrain : MonoBehaviour
     [Header("Limite de Chunks")]
     public int maxChunkCount = 50;
 
-    // Dicionário que armazena os chunks ativos (chave: coordenadas do chunk)
-    private Dictionary<Vector2Int, Terrain> terrainChunks = new Dictionary<Vector2Int, Terrain>();
-
     [Header("Spawns de Objetos")]
     [Tooltip("Definições para spawn de objetos (árvores, rochas, etc.).")]
     public ObjectSpawnDefinition[] objectSpawnDefinitions;
     public TerrainObjectSpawner objectSpawner;
 
-    // Controle de atualização de chunks
+    // Campos privados para controle interno
+    private Dictionary<Vector2Int, Terrain> terrainChunks = new Dictionary<Vector2Int, Terrain>();
     private Queue<Vector2Int> chunkQueue = new Queue<Vector2Int>();
     private bool isChunkCoroutineRunning = false;
     private Vector2Int lastPlayerChunkCoord = new Vector2Int(int.MinValue, int.MinValue);
+
 
     void Update()
     {
@@ -333,21 +334,91 @@ public class InfiniteTerrain : MonoBehaviour
             return GetBiomeByType(BiomeType.Tundra);
     }
 
+    // void AplicarDetalhesGrama(TerrainData terrainData, float[,,] splatmapData, BiomeDefinition biome)
+    // {
+    //     if (grassDetailDefinition == null || splatmapData == null)
+    //         return;
+
+    //     // Valida o índice da camada de grama com base nas layers do bioma
+    //     if (biome.terrainLayerDefinitions == null || grassDetailDefinition.targetLayerIndex < 0 ||
+    //         grassDetailDefinition.targetLayerIndex >= biome.terrainLayerDefinitions.Length)
+    //     {
+    //         Debug.LogError("Índice da camada de grama inválido!");
+    //         return;
+    //     }
+
+    //     bool validForMesh = grassDetailDefinition.grassRenderMode == GrassRenderMode.Mesh && grassDetailDefinition.grassPrefab != null;
+    //     bool validForBillboard = grassDetailDefinition.grassRenderMode == GrassRenderMode.Billboard2D && grassDetailDefinition.grassTexture != null;
+
+    //     if (!validForMesh && !validForBillboard)
+    //     {
+    //         Debug.LogError("Configure corretamente o prefab ou a texture para a grama, conforme o modo selecionado.");
+    //         return;
+    //     }
+
+    //     terrainData.SetDetailResolution(detailResolution, detailResolutionPerPacht);
+    //     DetailPrototype[] detailPrototypes = new DetailPrototype[1];
+    //     DetailPrototype prototype = new DetailPrototype();
+
+    //     if (grassDetailDefinition.grassRenderMode == GrassRenderMode.Mesh)
+    //     {
+    //         prototype.prototype = grassDetailDefinition.grassPrefab;
+    //         prototype.usePrototypeMesh = true;
+    //     }
+    //     else if (grassDetailDefinition.grassRenderMode == GrassRenderMode.Billboard2D)
+    //     {
+    //         prototype.prototypeTexture = grassDetailDefinition.grassTexture;
+    //         prototype.usePrototypeMesh = false;
+    //     }
+    //     prototype.minWidth = grassDetailDefinition.minWidth;
+    //     prototype.maxWidth = grassDetailDefinition.maxWidth;
+    //     prototype.minHeight = grassDetailDefinition.minHeight;
+    //     prototype.maxHeight = grassDetailDefinition.maxHeight;
+    //     prototype.noiseSpread = grassDetailDefinition.noiseSpread;
+    //     prototype.healthyColor = grassDetailDefinition.healthyColor;
+    //     prototype.dryColor = grassDetailDefinition.dryColor;
+    //     prototype.density = grassDetailDefinition.grassPrototypeDensity;
+
+    //     detailPrototypes[0] = prototype;
+    //     terrainData.detailPrototypes = detailPrototypes;
+
+    //     int[,] detailLayer = new int[detailResolution, detailResolution];
+    //     int alphaRes = terrainData.alphamapResolution;
+    //     for (int z = 0; z < detailResolution; z++)
+    //     {
+    //         for (int x = 0; x < detailResolution; x++)
+    //         {
+    //             float normX = (float)x / (detailResolution - 1);
+    //             float normZ = (float)z / (detailResolution - 1);
+    //             int alphaX = Mathf.RoundToInt(normX * (alphaRes - 1));
+    //             int alphaZ = Mathf.RoundToInt(normZ * (alphaRes - 1));
+    //             float splatValue = splatmapData[alphaZ, alphaX, grassDetailDefinition.targetLayerIndex];
+    //             detailLayer[z, x] = splatValue >= grassDetailDefinition.threshold ? grassDetailDefinition.grassMapDensity : 0;
+    //         }
+    //     }
+    //     terrainData.SetDetailLayer(0, 0, 0, detailLayer);
+    // }
+
+
     void AplicarDetalhesGrama(TerrainData terrainData, float[,,] splatmapData, BiomeDefinition biome)
     {
-        if (grassDetailDefinition == null || splatmapData == null)
+        // Verifica se o bioma possui uma configuração de grama definida
+        if (biome.grassDetailDefinition == null || splatmapData == null)
             return;
 
+        GrassDetailDefinition grassDef = biome.grassDetailDefinition;
+
         // Valida o índice da camada de grama com base nas layers do bioma
-        if (biome.terrainLayerDefinitions == null || grassDetailDefinition.targetLayerIndex < 0 ||
-            grassDetailDefinition.targetLayerIndex >= biome.terrainLayerDefinitions.Length)
+        if (biome.terrainLayerDefinitions == null || grassDef.targetLayerIndex < 0 ||
+            grassDef.targetLayerIndex >= biome.terrainLayerDefinitions.Length)
         {
             Debug.LogError("Índice da camada de grama inválido!");
             return;
         }
 
-        bool validForMesh = grassDetailDefinition.grassRenderMode == GrassRenderMode.Mesh && grassDetailDefinition.grassPrefab != null;
-        bool validForBillboard = grassDetailDefinition.grassRenderMode == GrassRenderMode.Billboard2D && grassDetailDefinition.grassTexture != null;
+        // Verifica se as configurações são válidas de acordo com o modo de renderização
+        bool validForMesh = grassDef.grassRenderMode == GrassRenderMode.Mesh && grassDef.grassPrefab != null;
+        bool validForBillboard = grassDef.grassRenderMode == GrassRenderMode.Billboard2D && grassDef.grassTexture != null;
 
         if (!validForMesh && !validForBillboard)
         {
@@ -359,24 +430,25 @@ public class InfiniteTerrain : MonoBehaviour
         DetailPrototype[] detailPrototypes = new DetailPrototype[1];
         DetailPrototype prototype = new DetailPrototype();
 
-        if (grassDetailDefinition.grassRenderMode == GrassRenderMode.Mesh)
+        if (grassDef.grassRenderMode == GrassRenderMode.Mesh)
         {
-            prototype.prototype = grassDetailDefinition.grassPrefab;
+            prototype.prototype = grassDef.grassPrefab;
             prototype.usePrototypeMesh = true;
         }
-        else if (grassDetailDefinition.grassRenderMode == GrassRenderMode.Billboard2D)
+        else if (grassDef.grassRenderMode == GrassRenderMode.Billboard2D)
         {
-            prototype.prototypeTexture = grassDetailDefinition.grassTexture;
+            prototype.prototypeTexture = grassDef.grassTexture;
             prototype.usePrototypeMesh = false;
         }
-        prototype.minWidth = grassDetailDefinition.minWidth;
-        prototype.maxWidth = grassDetailDefinition.maxWidth;
-        prototype.minHeight = grassDetailDefinition.minHeight;
-        prototype.maxHeight = grassDetailDefinition.maxHeight;
-        prototype.noiseSpread = grassDetailDefinition.noiseSpread;
-        prototype.healthyColor = grassDetailDefinition.healthyColor;
-        prototype.dryColor = grassDetailDefinition.dryColor;
-        prototype.density = grassDetailDefinition.grassPrototypeDensity;
+
+        prototype.minWidth = grassDef.minWidth;
+        prototype.maxWidth = grassDef.maxWidth;
+        prototype.minHeight = grassDef.minHeight;
+        prototype.maxHeight = grassDef.maxHeight;
+        prototype.noiseSpread = grassDef.noiseSpread;
+        prototype.healthyColor = grassDef.healthyColor;
+        prototype.dryColor = grassDef.dryColor;
+        prototype.density = grassDef.grassPrototypeDensity;
 
         detailPrototypes[0] = prototype;
         terrainData.detailPrototypes = detailPrototypes;
@@ -391,8 +463,8 @@ public class InfiniteTerrain : MonoBehaviour
                 float normZ = (float)z / (detailResolution - 1);
                 int alphaX = Mathf.RoundToInt(normX * (alphaRes - 1));
                 int alphaZ = Mathf.RoundToInt(normZ * (alphaRes - 1));
-                float splatValue = splatmapData[alphaZ, alphaX, grassDetailDefinition.targetLayerIndex];
-                detailLayer[z, x] = splatValue >= grassDetailDefinition.threshold ? grassDetailDefinition.grassMapDensity : 0;
+                float splatValue = splatmapData[alphaZ, alphaX, grassDef.targetLayerIndex];
+                detailLayer[z, x] = splatValue >= grassDef.threshold ? grassDef.grassMapDensity : 0;
             }
         }
         terrainData.SetDetailLayer(0, 0, 0, detailLayer);
