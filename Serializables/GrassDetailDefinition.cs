@@ -39,6 +39,11 @@ using UnityEngine;
 
 // }
 
+public enum GrassRenderMode
+{
+    Mesh,
+    Billboard2D
+}
 
 [System.Serializable]
 public class GrassDetailDefinition

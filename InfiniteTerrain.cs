@@ -3,18 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
 
-public enum GrassRenderMode
-{
-    Mesh,
-    Billboard2D
-}
 
-public enum BiomeType
-{
-    Deserto,
-    Floresta,
-    Tundra
-}
 
 
 
