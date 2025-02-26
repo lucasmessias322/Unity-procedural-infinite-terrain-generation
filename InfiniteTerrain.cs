@@ -17,13 +17,6 @@ public class InfiniteTerrain : MonoBehaviour
     public float terrainHeight = 100f;
     public int seed = 42;
 
-    [Header("Configurações do Perlin Noise (Fallback)")]
-    [Range(0.001f, 0.1f)]
-    public float highFrequencyScale = 0.02f;
-    public float highFrequencyAmplitude = 10f;
-    public float lowFrequencyScale = 0.005f;
-    public float lowFrequencyAmplitude = 70f;
-
     [Header("Configurações dos Biomas")]
     [Tooltip("Escala do ruído para a determinação dos biomas.")]
     public float biomeNoiseScale = 0.001f;
@@ -53,11 +46,6 @@ public class InfiniteTerrain : MonoBehaviour
     private Queue<Vector2Int> chunkQueue = new Queue<Vector2Int>();
     private bool isChunkCoroutineRunning = false;
     private Vector2Int lastPlayerChunkCoord = new Vector2Int(int.MinValue, int.MinValue);
-
-    [Header("Água")]
-    public GameObject waterPrefab;
-    public float waterHeight = 40f; // Define a altura global da água
-
 
     void Update()
     {
@@ -235,6 +223,11 @@ public class InfiniteTerrain : MonoBehaviour
         terrenoObj.transform.position = chunkWorldPos;
         Terrain terreno = terrenoObj.GetComponent<Terrain>();
 
+        // Adiciona o componente e atribui o bioma predominante
+        TerrainChunkInfo chunkInfo = terrenoObj.AddComponent<TerrainChunkInfo>();
+        chunkInfo.biome = biomeAtCenter;
+
+
         if (!terrainChunks.ContainsKey(coord))
             terrainChunks.Add(coord, terreno);
 
@@ -244,20 +237,11 @@ public class InfiniteTerrain : MonoBehaviour
             objectSpawner.SpawnObjectsOnChunk(terreno, chunkWorldPos, terrenoObj, chunkSize);
         }
 
-        // if (terrenoObj != null && waterPrefab != null)
-        // {
-        //     Vector3 waterPos = new Vector3(
-        //         chunkWorldPos.x + (chunkSize / 2f),
-        //         waterHeight,
-        //         chunkWorldPos.z + (chunkSize / 2f)
-        //     );
-        //     GameObject waterTile = Instantiate(waterPrefab, waterPos, Quaternion.identity);
-        //     waterTile.transform.localScale = new Vector3(chunkSize / 10f, 1, chunkSize / 10f);
-        //     waterTile.transform.SetParent(terrenoObj.transform);
-        // }
-
+        // Exemplo de chamada a partir de outro método
+        RenomearChunksFronteiraBioma();
 
     }
+
 
     private float[,] GenerateHeights(Vector3 offset)
     {
@@ -325,71 +309,6 @@ public class InfiniteTerrain : MonoBehaviour
         else
             return GetBiomeByType(BiomeType.Tundra);
     }
-
-    // void AplicarDetalhesGrama(TerrainData terrainData, float[,,] splatmapData, BiomeDefinition biome)
-    // {
-    //     if (grassDetailDefinition == null || splatmapData == null)
-    //         return;
-
-    //     // Valida o índice da camada de grama com base nas layers do bioma
-    //     if (biome.terrainLayerDefinitions == null || grassDetailDefinition.targetLayerIndex < 0 ||
-    //         grassDetailDefinition.targetLayerIndex >= biome.terrainLayerDefinitions.Length)
-    //     {
-    //         Debug.LogError("Índice da camada de grama inválido!");
-    //         return;
-    //     }
-
-    //     bool validForMesh = grassDetailDefinition.grassRenderMode == GrassRenderMode.Mesh && grassDetailDefinition.grassPrefab != null;
-    //     bool validForBillboard = grassDetailDefinition.grassRenderMode == GrassRenderMode.Billboard2D && grassDetailDefinition.grassTexture != null;
-
-    //     if (!validForMesh && !validForBillboard)
-    //     {
-    //         Debug.LogError("Configure corretamente o prefab ou a texture para a grama, conforme o modo selecionado.");
-    //         return;
-    //     }
-
-    //     terrainData.SetDetailResolution(detailResolution, detailResolutionPerPacht);
-    //     DetailPrototype[] detailPrototypes = new DetailPrototype[1];
-    //     DetailPrototype prototype = new DetailPrototype();
-
-    //     if (grassDetailDefinition.grassRenderMode == GrassRenderMode.Mesh)
-    //     {
-    //         prototype.prototype = grassDetailDefinition.grassPrefab;
-    //         prototype.usePrototypeMesh = true;
-    //     }
-    //     else if (grassDetailDefinition.grassRenderMode == GrassRenderMode.Billboard2D)
-    //     {
-    //         prototype.prototypeTexture = grassDetailDefinition.grassTexture;
-    //         prototype.usePrototypeMesh = false;
-    //     }
-    //     prototype.minWidth = grassDetailDefinition.minWidth;
-    //     prototype.maxWidth = grassDetailDefinition.maxWidth;
-    //     prototype.minHeight = grassDetailDefinition.minHeight;
-    //     prototype.maxHeight = grassDetailDefinition.maxHeight;
-    //     prototype.noiseSpread = grassDetailDefinition.noiseSpread;
-    //     prototype.healthyColor = grassDetailDefinition.healthyColor;
-    //     prototype.dryColor = grassDetailDefinition.dryColor;
-    //     prototype.density = grassDetailDefinition.grassPrototypeDensity;
-
-    //     detailPrototypes[0] = prototype;
-    //     terrainData.detailPrototypes = detailPrototypes;
-
-    //     int[,] detailLayer = new int[detailResolution, detailResolution];
-    //     int alphaRes = terrainData.alphamapResolution;
-    //     for (int z = 0; z < detailResolution; z++)
-    //     {
-    //         for (int x = 0; x < detailResolution; x++)
-    //         {
-    //             float normX = (float)x / (detailResolution - 1);
-    //             float normZ = (float)z / (detailResolution - 1);
-    //             int alphaX = Mathf.RoundToInt(normX * (alphaRes - 1));
-    //             int alphaZ = Mathf.RoundToInt(normZ * (alphaRes - 1));
-    //             float splatValue = splatmapData[alphaZ, alphaX, grassDetailDefinition.targetLayerIndex];
-    //             detailLayer[z, x] = splatValue >= grassDetailDefinition.threshold ? grassDetailDefinition.grassMapDensity : 0;
-    //         }
-    //     }
-    //     terrainData.SetDetailLayer(0, 0, 0, detailLayer);
-    // }
 
 
     void AplicarDetalhesGrama(TerrainData terrainData, float[,,] splatmapData, BiomeDefinition biome)
@@ -462,6 +381,54 @@ public class InfiniteTerrain : MonoBehaviour
         terrainData.SetDetailLayer(0, 0, 0, detailLayer);
     }
 
+    public void RenomearChunksFronteiraBioma()
+    {
+        // Percorre todos os chunks existentes
+        foreach (var kv in terrainChunks)
+        {
+            Vector2Int coord = kv.Key;
+            Terrain currentTerrain = kv.Value;
+            TerrainChunkInfo currentInfo = currentTerrain.GetComponent<TerrainChunkInfo>();
+
+            if (currentInfo == null)
+                continue; // Caso não haja a informação do bioma, pula para o próximo
+
+            bool temVizinhoDiferente = false;
+
+            // Define as direções dos vizinhos (norte, leste, sul e oeste)
+            Vector2Int[] direcoes = new Vector2Int[]
+            {
+            new Vector2Int(0, 1),   // Norte
+            new Vector2Int(1, 0),   // Leste
+            new Vector2Int(0, -1),  // Sul
+            new Vector2Int(-1, 0)   // Oeste
+            };
+
+            foreach (Vector2Int direcao in direcoes)
+            {
+                Vector2Int neighborCoord = coord + direcao;
+                if (terrainChunks.TryGetValue(neighborCoord, out Terrain neighborTerrain))
+                {
+                    TerrainChunkInfo neighborInfo = neighborTerrain.GetComponent<TerrainChunkInfo>();
+                    // Se o vizinho existir e tiver um bioma diferente
+                    if (neighborInfo != null && neighborInfo.biome != currentInfo.biome)
+                    {
+                        neighborInfo.hasNeibhorChunk = true;
+
+                        temVizinhoDiferente = true;
+                        break;
+                    }
+                }
+            }
+
+            // Se o chunk atual faz fronteira com um bioma diferente, renomeia o GameObject
+            if (temVizinhoDiferente)
+            {
+                currentTerrain.gameObject.name = "Vizinho_" + coord;
+            }
+        }
+    }
+
     float CalcularAltura(float worldX, float worldZ, BiomeDefinition biome)
     {
         float y = Mathf.PerlinNoise((worldX + seed) * biome.highFrequencyScale, (worldZ + seed) * biome.highFrequencyScale) * biome.highFrequencyAmplitude;
@@ -487,4 +454,11 @@ public class InfiniteTerrain : MonoBehaviour
         float gradient = Mathf.Sqrt(dX * dX + dZ * dZ);
         return Mathf.Atan(gradient) * Mathf.Rad2Deg;
     }
+
+
+
 }
+
+
+
+
