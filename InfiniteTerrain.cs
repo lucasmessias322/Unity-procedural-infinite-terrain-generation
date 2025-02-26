@@ -3,10 +3,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
 
-
-
-
-
 [RequireComponent(typeof(TerrainObjectSpawner))]
 public class InfiniteTerrain : MonoBehaviour
 {
@@ -58,9 +54,9 @@ public class InfiniteTerrain : MonoBehaviour
     private bool isChunkCoroutineRunning = false;
     private Vector2Int lastPlayerChunkCoord = new Vector2Int(int.MinValue, int.MinValue);
 
-    // [Header("Água")]
-    // public GameObject waterPrefab;
-    // public float waterHeight = 40f; // Define a altura global da água
+    [Header("Água")]
+    public GameObject waterPrefab;
+    public float waterHeight = 40f; // Define a altura global da água
 
 
     void Update()
@@ -250,10 +246,16 @@ public class InfiniteTerrain : MonoBehaviour
 
         // if (terrenoObj != null && waterPrefab != null)
         // {
-        //     GameObject waterTile = Instantiate(waterPrefab, new Vector3(chunkWorldPos.x, waterHeight, chunkWorldPos.z), Quaternion.identity);
-        //    // waterTile.transform.localScale = new Vector3(chunkSize, 1, chunkSize);
+        //     Vector3 waterPos = new Vector3(
+        //         chunkWorldPos.x + (chunkSize / 2f),
+        //         waterHeight,
+        //         chunkWorldPos.z + (chunkSize / 2f)
+        //     );
+        //     GameObject waterTile = Instantiate(waterPrefab, waterPos, Quaternion.identity);
+        //     waterTile.transform.localScale = new Vector3(chunkSize / 10f, 1, chunkSize / 10f);
         //     waterTile.transform.SetParent(terrenoObj.transform);
         // }
+
 
     }
 

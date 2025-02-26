@@ -4,22 +4,28 @@ public class ObjectSpawnDefinition
 {
     [Tooltip("Prefab do objeto a ser instanciado.")]
     public GameObject prefab;
+
     [Tooltip("Quantidade máxima de objetos por chunk.")]
     public int maxCount = 50;
+
     [Tooltip("Valor de threshold do Perlin Noise para spawn.")]
     public float spawnThreshold = 0.5f;
+
     [Tooltip("Escala do Perlin Noise.")]
     public float noiseScale = 0.1f;
+
     [Tooltip("Altura mínima para que o objeto seja instanciado.")]
     public float minHeight = 20f;
+
+    [Tooltip("Altura máxima para que o objeto seja instanciado.")]
+    public float maxHeight = 200f; // Novo campo para definir a altura máxima
 
     [Header("Pintura do Terreno")]
     [Tooltip("Índice da terrain layer que será usada para pintar a área do objeto.")]
     public int paintLayerIndex;
+
     [Tooltip("Raio (em unidades) para pintar o terreno ao redor do objeto.")]
     public float paintRadius = 5f;
-
-
 }
 
 public class TerrainObjectSpawner : MonoBehaviour
@@ -51,7 +57,7 @@ public class TerrainObjectSpawner : MonoBehaviour
                     posWorld.y = y;
 
                     // Verifica se a posição atende ao critério de altura
-                    if (y >= spawnDef.minHeight)
+                    if (y >= spawnDef.minHeight && y <= spawnDef.maxHeight)
                     {
                         // Usa Perlin Noise para decidir o spawn
                         float noiseValue = Mathf.PerlinNoise((posWorld.x + seed) * spawnDef.noiseScale, (posWorld.z + seed) * spawnDef.noiseScale);
