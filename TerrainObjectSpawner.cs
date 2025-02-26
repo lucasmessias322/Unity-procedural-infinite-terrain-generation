@@ -18,6 +18,8 @@ public class ObjectSpawnDefinition
     public int paintLayerIndex;
     [Tooltip("Raio (em unidades) para pintar o terreno ao redor do objeto.")]
     public float paintRadius = 5f;
+
+
 }
 
 public class TerrainObjectSpawner : MonoBehaviour
@@ -25,37 +27,48 @@ public class TerrainObjectSpawner : MonoBehaviour
     // Você pode passar o seed do terreno aqui, ou defini-lo como parâmetro do método
     public int seed = 42;
 
-    public void SpawnObjectsOnChunk(Terrain terrain, Vector3 chunkWorldPos, GameObject parent, ObjectSpawnDefinition spawnDef, int chunkSize)
+    [Tooltip("Definições para spawn de objetos (árvores, rochas, etc.).")]
+    public ObjectSpawnDefinition[] objectSpawnDefinitions;
+
+    public void SpawnObjectsOnChunk(Terrain terrain, Vector3 chunkWorldPos, GameObject parent, int chunkSize)
     {
-        int spawnedCount = 0;
-        int attempts = 0;
-        while (spawnedCount < spawnDef.maxCount && attempts < spawnDef.maxCount * 10)
+
+        if (objectSpawnDefinitions != null && objectSpawnDefinitions.Length > 0)
         {
-            attempts++;
-            // Posição aleatória dentro do chunk
-            float posX = Random.Range(0f, chunkSize);
-            float posZ = Random.Range(0f, chunkSize);
-            Vector3 posWorld = new Vector3(chunkWorldPos.x + posX, 0, chunkWorldPos.z + posZ);
-            // Obtém a altura do terreno na posição
-            float y = terrain.SampleHeight(posWorld);
-            posWorld.y = y;
-
-            // Verifica se a posição atende ao critério de altura
-            if (y >= spawnDef.minHeight)
+            foreach (ObjectSpawnDefinition spawnDef in objectSpawnDefinitions)
             {
-                // Usa Perlin Noise para decidir o spawn
-                float noiseValue = Mathf.PerlinNoise((posWorld.x + seed) * spawnDef.noiseScale, (posWorld.z + seed) * spawnDef.noiseScale);
-                if (noiseValue > spawnDef.spawnThreshold)
-                {// Dentro do método de spawn, após instanciar o objeto:
-                    GameObject spawnedObject = Instantiate(spawnDef.prefab, posWorld, Quaternion.identity, parent.transform);
-                    RemoveGrassUnderObject(terrain, posWorld, 2f); // 2f representa o raio de exclusão, ajuste conforme necessário.
+                int spawnedCount = 0;
+                int attempts = 0;
+                while (spawnedCount < spawnDef.maxCount && attempts < spawnDef.maxCount * 10)
+                {
+                    attempts++;
+                    // Posição aleatória dentro do chunk
+                    float posX = Random.Range(0f, chunkSize);
+                    float posZ = Random.Range(0f, chunkSize);
+                    Vector3 posWorld = new Vector3(chunkWorldPos.x + posX, 0, chunkWorldPos.z + posZ);
+                    // Obtém a altura do terreno na posição
+                    float y = terrain.SampleHeight(posWorld);
+                    posWorld.y = y;
 
-                    // Pinta o terreno na área onde o objeto foi colocado, usando a terrain layer definida.
-                    PaintTerrainAtPosition(terrain, posWorld, spawnDef.paintLayerIndex, spawnDef.paintRadius);
-                    spawnedCount++;
+                    // Verifica se a posição atende ao critério de altura
+                    if (y >= spawnDef.minHeight)
+                    {
+                        // Usa Perlin Noise para decidir o spawn
+                        float noiseValue = Mathf.PerlinNoise((posWorld.x + seed) * spawnDef.noiseScale, (posWorld.z + seed) * spawnDef.noiseScale);
+                        if (noiseValue > spawnDef.spawnThreshold)
+                        {// Dentro do método de spawn, após instanciar o objeto:
+                            GameObject spawnedObject = Instantiate(spawnDef.prefab, posWorld, Quaternion.identity, parent.transform);
+                            RemoveGrassUnderObject(terrain, posWorld, 2f); // 2f representa o raio de exclusão, ajuste conforme necessário.
+
+                            // Pinta o terreno na área onde o objeto foi colocado, usando a terrain layer definida.
+                            PaintTerrainAtPosition(terrain, posWorld, spawnDef.paintLayerIndex, spawnDef.paintRadius);
+                            spawnedCount++;
+                        }
+                    }
                 }
             }
         }
+
     }
 
     /// <summary>

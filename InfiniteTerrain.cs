@@ -37,12 +37,6 @@ public class InfiniteTerrain : MonoBehaviour
     [Header("Distância de Renderização")]
     public int renderDistance = 2;
 
-   // [Header("Camadas de Terreno (Procedural)")]
- //   public TerrainLayerDefinition[] terrainLayerDefinitions;
-
-    //[Header("Detalhes de Grama")]
-    //[Tooltip("Definição para espalhar grama em uma TerrainLayer específica.")]
-    //public GrassDetailDefinition grassDetailDefinition;
     [Tooltip("Resolução do detail map (quanto maior, mais detalhes).")]
     public int detailResolution = 256;
     public int detailResolutionPerPacht = 16;
@@ -56,9 +50,6 @@ public class InfiniteTerrain : MonoBehaviour
     [Header("Limite de Chunks")]
     public int maxChunkCount = 50;
 
-    [Header("Spawns de Objetos")]
-    [Tooltip("Definições para spawn de objetos (árvores, rochas, etc.).")]
-    public ObjectSpawnDefinition[] objectSpawnDefinitions;
     public TerrainObjectSpawner objectSpawner;
 
     // Campos privados para controle interno
@@ -66,6 +57,10 @@ public class InfiniteTerrain : MonoBehaviour
     private Queue<Vector2Int> chunkQueue = new Queue<Vector2Int>();
     private bool isChunkCoroutineRunning = false;
     private Vector2Int lastPlayerChunkCoord = new Vector2Int(int.MinValue, int.MinValue);
+
+    // [Header("Água")]
+    // public GameObject waterPrefab;
+    // public float waterHeight = 40f; // Define a altura global da água
 
 
     void Update()
@@ -247,13 +242,19 @@ public class InfiniteTerrain : MonoBehaviour
         if (!terrainChunks.ContainsKey(coord))
             terrainChunks.Add(coord, terreno);
 
-        if (objectSpawnDefinitions != null && objectSpawnDefinitions.Length > 0 && objectSpawner != null)
+
+        if (objectSpawner != null)
         {
-            foreach (ObjectSpawnDefinition def in objectSpawnDefinitions)
-            {
-                objectSpawner.SpawnObjectsOnChunk(terreno, chunkWorldPos, terrenoObj, def, chunkSize);
-            }
+            objectSpawner.SpawnObjectsOnChunk(terreno, chunkWorldPos, terrenoObj, chunkSize);
         }
+
+        // if (terrenoObj != null && waterPrefab != null)
+        // {
+        //     GameObject waterTile = Instantiate(waterPrefab, new Vector3(chunkWorldPos.x, waterHeight, chunkWorldPos.z), Quaternion.identity);
+        //    // waterTile.transform.localScale = new Vector3(chunkSize, 1, chunkSize);
+        //     waterTile.transform.SetParent(terrenoObj.transform);
+        // }
+
     }
 
     private float[,] GenerateHeights(Vector3 offset)
