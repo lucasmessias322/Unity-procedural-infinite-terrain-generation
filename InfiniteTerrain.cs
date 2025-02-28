@@ -172,16 +172,17 @@ public class InfiniteTerrain : MonoBehaviour
     {
         Vector3 chunkWorldPos = new Vector3(coord.x * chunkSize, 0, coord.y * chunkSize);
 
-        // Determine the predominant biome for this chunk (using the center position)
+        // Determina o bioma predominante para este chunk (usando a posição central)
         BiomeDefinition centerBiome = GetBiomeAtPosition(chunkWorldPos);
 
+        // Aqui usamos as layers definidas no bioma central e as globais
         int biomeLayerCount = (centerBiome.terrainLayerDefinitions != null ? centerBiome.terrainLayerDefinitions.Length : 0);
         int globalLayerCount = (globalLayerDefinitions != null ? globalLayerDefinitions.Length : 0);
         int totalLayers = biomeLayerCount + globalLayerCount;
 
         var result = await Task.Run(() =>
         {
-            // Generate heights with blending between biomes
+            // Gera alturas com blending entre biomas
             float[,] heights = GenerateHeights(chunkWorldPos);
             float[,,] splatmapData = null;
 
@@ -199,7 +200,7 @@ public class InfiniteTerrain : MonoBehaviour
                         float totalWeight = 0f;
                         float[] weights = new float[totalLayers];
 
-                        // Calculate weights for biome layers
+                        // Calcula os pesos para as layers do bioma central
                         for (int i = 0; i < biomeLayerCount; i++)
                         {
                             TerrainLayerDefinition def = centerBiome.terrainLayerDefinitions[i];
@@ -212,7 +213,7 @@ public class InfiniteTerrain : MonoBehaviour
                             totalWeight += weight;
                         }
 
-                        // Calculate weights for global layers
+                        // Calcula os pesos para as layers globais
                         for (int i = 0; i < globalLayerCount; i++)
                         {
                             GlobalLayerDefinition globalDef = globalLayerDefinitions[i];
@@ -225,7 +226,7 @@ public class InfiniteTerrain : MonoBehaviour
                             totalWeight += weight;
                         }
 
-                        // Fallback: if no weight is assigned, set fallback to the first available layer
+                        // Fallback: se nenhum peso foi atribuído, usa a primeira layer disponível
                         if (totalWeight == 0f)
                         {
                             if (biomeLayerCount > 0)
@@ -265,21 +266,22 @@ public class InfiniteTerrain : MonoBehaviour
 
         terrainData.SetHeights(0, 0, heightsResult);
 
-        // Configure TerrainData layers using biome layers and global layers if defined
+        // Configura as layers do TerrainData usando as layers do bioma central e globais
         if (totalLayers > 0)
         {
             TerrainLayer[] layers = new TerrainLayer[totalLayers];
-            // Biome layers
+            // Layers do bioma central
             for (int i = 0; i < biomeLayerCount; i++)
             {
                 layers[i] = centerBiome.terrainLayerDefinitions[i].terrainLayer;
             }
-            // Global layers
+            // Layers globais
             for (int i = 0; i < globalLayerCount; i++)
             {
                 layers[biomeLayerCount + i] = globalLayerDefinitions[i].terrainLayer;
             }
             terrainData.terrainLayers = layers;
+            // Aplica a alphamap sem blend inicialmente
             terrainData.SetAlphamaps(0, 0, splatmapDataResult);
         }
 
@@ -290,7 +292,7 @@ public class InfiniteTerrain : MonoBehaviour
         terrainObj.transform.position = chunkWorldPos;
         Terrain terrain = terrainObj.GetComponent<Terrain>();
 
-        // Add the TerrainChunkInfo component and assign the predominant biome
+        // Adiciona o TerrainChunkInfo e define o bioma predominante
         TerrainChunkInfo chunkInfo = terrainObj.AddComponent<TerrainChunkInfo>();
         chunkInfo.biome = centerBiome;
 
@@ -299,6 +301,69 @@ public class InfiniteTerrain : MonoBehaviour
 
         // Atualiza os vizinhos imediatamente após a criação
         UpdateNeighbors(coord, chunkInfo);
+
+        // Se o chunk tem um vizinho com bioma diferente, tenta incluir a layer do vizinho
+        if (chunkInfo.hasDifferentNeighbor && chunkInfo.neighborBiome != null && splatmapDataResult != null)
+        {
+            // Obtém a layer desejada do vizinho (assumindo a primeira definição do vizinho)
+            TerrainLayer neighborLayer = chunkInfo.neighborBiome.terrainLayerDefinitions[0].terrainLayer;
+
+            // Converte as layers atuais para uma lista para facilitar a verificação
+            List<TerrainLayer> layerList = new List<TerrainLayer>(terrainData.terrainLayers);
+            int currentTotalLayers = layerList.Count;
+            bool containsNeighbor = false;
+            foreach (var tl in layerList)
+            {
+                if (tl == neighborLayer)
+                {
+                    containsNeighbor = true;
+                    break;
+                }
+            }
+            // Se a layer do vizinho não estiver presente, adiciona-a e expande o splatmap
+            if (!containsNeighbor)
+            {
+                layerList.Add(neighborLayer);
+                int newTotal = layerList.Count;
+                float[,,] newSplatmapData = new float[alphamapResolution, alphamapResolution, newTotal];
+                for (int z = 0; z < alphamapResolution; z++)
+                {
+                    for (int x = 0; x < alphamapResolution; x++)
+                    {
+                        for (int i = 0; i < currentTotalLayers; i++)
+                        {
+                            newSplatmapData[z, x, i] = splatmapDataResult[z, x, i];
+                        }
+                        // Inicializa o novo canal com 0
+                        newSplatmapData[z, x, newTotal - 1] = 0f;
+                    }
+                }
+                splatmapDataResult = newSplatmapData;
+                terrainData.terrainLayers = layerList.ToArray();
+                currentTotalLayers = newTotal;
+            }
+            // Procura o índice da layer do vizinho na lista atualizada
+            int neighborLayerIndex = -1;
+            TerrainLayer[] updatedLayers = terrainData.terrainLayers;
+            for (int i = 0; i < updatedLayers.Length; i++)
+            {
+                if (updatedLayers[i] == neighborLayer)
+                {
+                    neighborLayerIndex = i;
+                    break;
+                }
+            }
+            if (neighborLayerIndex >= 0)
+            {
+                // Aplica o blend na alphamap para as bordas
+                //  BlendBorderWithNeighbor(ref splatmapDataResult, currentTotalLayers, neighborLayerIndex);
+                float minTransitionHeight = chunkInfo.neighborBiome.terrainLayerDefinitions[0].minHeight;
+                float maxTransitionHeight = chunkInfo.neighborBiome.terrainLayerDefinitions[0].maxHeight;
+                BlendBorderWithNeighbor(ref splatmapDataResult, currentTotalLayers, neighborLayerIndex,
+                             heightsResult, terrainHeight, minTransitionHeight, maxTransitionHeight);
+                terrainData.SetAlphamaps(0, 0, splatmapDataResult);
+            }
+        }
 
         if (objectSpawner != null)
         {
@@ -375,13 +440,13 @@ public class InfiniteTerrain : MonoBehaviour
 
     void ApplyGrassDetails(TerrainData terrainData, float[,,] splatmapData, BiomeDefinition biome)
     {
-        // Check if the biome has a defined grass configuration
+        // Verifica se o bioma tem uma configuração de grama definida
         if (biome.grassDetailDefinition == null || splatmapData == null)
             return;
 
         GrassDetailDefinition grassDef = biome.grassDetailDefinition;
 
-        // Validate the grass layer index based on the biome layers
+        // Valida o índice da layer baseado nas layers do bioma
         if (biome.terrainLayerDefinitions == null || grassDef.targetLayerIndex < 0 ||
             grassDef.targetLayerIndex >= biome.terrainLayerDefinitions.Length)
         {
@@ -389,7 +454,7 @@ public class InfiniteTerrain : MonoBehaviour
             return;
         }
 
-        // Check if the settings are valid based on the render mode
+        // Valida as configurações de acordo com o modo de renderização
         bool validForMesh = grassDef.grassRenderMode == GrassRenderMode.Mesh && grassDef.grassPrefab != null;
         bool validForBillboard = grassDef.grassRenderMode == GrassRenderMode.Billboard2D && grassDef.grassTexture != null;
 
@@ -443,15 +508,14 @@ public class InfiniteTerrain : MonoBehaviour
         terrainData.SetDetailLayer(0, 0, 0, detailLayer);
     }
 
-
     void UpdateNeighbors(Vector2Int coord, TerrainChunkInfo chunkInfo)
     {
         Vector2Int[] directions = new Vector2Int[]
         {
-        new Vector2Int(0, 1),   // Norte
-        new Vector2Int(1, 0),   // Leste
-        new Vector2Int(0, -1),  // Sul
-        new Vector2Int(-1, 0)   // Oeste
+            new Vector2Int(0, 1),   // Norte
+            new Vector2Int(1, 0),   // Leste
+            new Vector2Int(0, -1),  // Sul
+            new Vector2Int(-1, 0)   // Oeste
         };
 
         foreach (Vector2Int direction in directions)
@@ -472,8 +536,6 @@ public class InfiniteTerrain : MonoBehaviour
 
                         // Opcional: atualiza o nome para identificar o chunk com vizinhança diferente
                         neighborTerrain.gameObject.name = "Neighbor_" + neighborCoord;
-                        // Também atualiza o chunk atual, se desejar:
-                        // terrainChunks[coord].gameObject.name = "Neighbor_" + coord;
                     }
                 }
             }
@@ -505,4 +567,126 @@ public class InfiniteTerrain : MonoBehaviour
         float gradient = Mathf.Sqrt(dX * dX + dZ * dZ);
         return Mathf.Atan(gradient) * Mathf.Rad2Deg;
     }
+
+    // FUNÇÕES NOVAS: Blend e obtenção do layer do vizinho
+
+    int GetNeighborLayerIndex(BiomeDefinition neighborBiome, TerrainLayer[] layers)
+    {
+        // Para este exemplo, supomos que o layer desejado seja o da primeira definição do bioma vizinho.
+        if (neighborBiome.terrainLayerDefinitions != null && neighborBiome.terrainLayerDefinitions.Length > 0)
+        {
+            TerrainLayer target = neighborBiome.terrainLayerDefinitions[0].terrainLayer;
+            for (int i = 0; i < layers.Length; i++)
+            {
+                if (layers[i] == target)
+                    return i;
+            }
+        }
+        return 0;
+    }
+
+    // void BlendBorderWithNeighbor(ref float[,,] splatmapData, int totalLayers, int neighborLayerIndex)
+    // {
+    //     int width = splatmapData.GetLength(1);
+    //     int height = splatmapData.GetLength(0);
+    //     int blendMargin = 10; // número de pixels na borda para aplicar blend
+
+    //     for (int z = 0; z < height; z++)
+    //     {
+    //         for (int x = 0; x < width; x++)
+    //         {
+    //             float blendFactor = 0f;
+    //             // Calcula o fator de blend com base na distância da borda
+    //             if (x < blendMargin)
+    //                 blendFactor = Mathf.Max(blendFactor, 1f - (x / (float)blendMargin));
+    //             else if (x >= width - blendMargin)
+    //                 blendFactor = Mathf.Max(blendFactor, 1f - ((width - x - 1) / (float)blendMargin));
+
+    //             if (z < blendMargin)
+    //                 blendFactor = Mathf.Max(blendFactor, 1f - (z / (float)blendMargin));
+    //             else if (z >= height - blendMargin)
+    //                 blendFactor = Mathf.Max(blendFactor, 1f - ((height - z - 1) / (float)blendMargin));
+
+    //             if (blendFactor > 0f)
+    //             {
+    //                 // Faz a interpolação entre os valores atuais e o target para o layer do vizinho
+    //                 for (int layer = 0; layer < totalLayers; layer++)
+    //                 {
+    //                     float targetValue = (layer == neighborLayerIndex) ? 1f : 0f;
+    //                     splatmapData[z, x, layer] = Mathf.Lerp(splatmapData[z, x, layer], targetValue, blendFactor);
+    //                 }
+    //                 // Re-normaliza para que a soma seja 1
+    //                 float sum = 0f;
+    //                 for (int layer = 0; layer < totalLayers; layer++)
+    //                     sum += splatmapData[z, x, layer];
+    //                 if (sum > 0f)
+    //                 {
+    //                     for (int layer = 0; layer < totalLayers; layer++)
+    //                         splatmapData[z, x, layer] /= sum;
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+
+    void BlendBorderWithNeighbor(
+        ref float[,,] splatmapData,
+        int totalLayers,
+        int neighborLayerIndex,
+        float[,] heightMap,
+        float terrainHeight,
+        float minTransitionHeight,
+        float maxTransitionHeight)
+    {
+        int width = splatmapData.GetLength(1);
+        int height = splatmapData.GetLength(0);
+        int blendMargin = 10; // Número de pixels na borda para aplicar blend
+
+        for (int z = 0; z < height; z++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                // Calcula a altura do mundo para esta posição
+                float worldHeight = heightMap[z, x] * terrainHeight;
+
+                // Verifica se a altura está dentro do intervalo desejado
+                if (worldHeight < minTransitionHeight || worldHeight > maxTransitionHeight)
+                {
+                    continue; // Se não estiver, pula o blend para este pixel
+                }
+
+                float blendFactor = 0f;
+                // Calcula o fator de blend com base na distância da borda
+                if (x < blendMargin)
+                    blendFactor = Mathf.Max(blendFactor, 1f - (x / (float)blendMargin));
+                else if (x >= width - blendMargin)
+                    blendFactor = Mathf.Max(blendFactor, 1f - ((width - x - 1) / (float)blendMargin));
+
+                if (z < blendMargin)
+                    blendFactor = Mathf.Max(blendFactor, 1f - (z / (float)blendMargin));
+                else if (z >= height - blendMargin)
+                    blendFactor = Mathf.Max(blendFactor, 1f - ((height - z - 1) / (float)blendMargin));
+
+                if (blendFactor > 0f)
+                {
+                    // Interpola entre os valores atuais e o target para a layer do vizinho
+                    for (int layer = 0; layer < totalLayers; layer++)
+                    {
+                        float targetValue = (layer == neighborLayerIndex) ? 1f : 0f;
+                        splatmapData[z, x, layer] = Mathf.Lerp(splatmapData[z, x, layer], targetValue, blendFactor);
+                    }
+                    // Re-normaliza para que a soma seja 1
+                    float sum = 0f;
+                    for (int layer = 0; layer < totalLayers; layer++)
+                        sum += splatmapData[z, x, layer];
+                    if (sum > 0f)
+                    {
+                        for (int layer = 0; layer < totalLayers; layer++)
+                            splatmapData[z, x, layer] /= sum;
+                    }
+                }
+            }
+        }
+    }
+
 }
