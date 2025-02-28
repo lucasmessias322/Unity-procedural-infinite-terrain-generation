@@ -19,8 +19,8 @@ using UnityEngine;
 
 public enum BiomeType
 {
-    Deserto,
-    Floresta,
+    Desert,
+    Forest,
     Tundra
 }
 

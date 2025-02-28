@@ -17,4 +17,6 @@ public class TerrainLayerDefinition
     public float minSlope = 0f;
     [Tooltip("Slope máximo para que esta camada seja aplicada (em graus).")]
     public float maxSlope = 90f;
+
+    
 }

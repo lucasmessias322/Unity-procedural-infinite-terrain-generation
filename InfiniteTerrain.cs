@@ -8,11 +8,11 @@ using UnityEngine;
 public class GlobalLayerDefinition
 {
     public TerrainLayer terrainLayer;
-    public float minHeight; // altura mínima para aplicação
-    public float maxHeight; // altura máxima para aplicação
-    public float minSlope;  // inclinação mínima
-    public float maxSlope;  // inclinação máxima
-    // Outras configurações podem ser adicionadas aqui...
+    public float minHeight; // minimum height for application
+    public float maxHeight; // maximum height for application
+    public float minSlope;  // minimum slope
+    public float maxSlope;  // maximum slope
+    // Additional settings can be added here...
 }
 
 [RequireComponent(typeof(TerrainObjectSpawner))]
@@ -20,10 +20,10 @@ public class InfiniteTerrain : MonoBehaviour
 {
     public static InfiniteTerrain Instance { get; private set; }
 
-    [Header("Referências")]
+    [Header("References")]
     public Transform player;
 
-    [Header("Configurações do Terreno")]
+    [Header("Terrain Settings")]
     [Range(256, 1024)]
     public int chunkSize = 512;
     [Range(257, 1025)]
@@ -31,18 +31,18 @@ public class InfiniteTerrain : MonoBehaviour
     public float terrainHeight = 100f;
     public int seed = 42;
 
-    [Header("Configurações dos Biomas")]
-    [Tooltip("Escala do ruído para a determinação dos biomas.")]
+    [Header("Biome Settings")]
+    [Tooltip("Noise scale for biome determination.")]
     public float biomeNoiseScale = 0.001f;
-    [Tooltip("Definições dos biomas disponíveis.")]
+    [Tooltip("Available biome definitions.")]
     public BiomeDefinition[] biomeDefinitions;
 
-    [Header("Distância de Renderização")]
+    [Header("Render Distance")]
     public int renderDistance = 2;
 
-    [Tooltip("Resolução do detail map (quanto maior, mais detalhes).")]
+    [Tooltip("Detail map resolution (higher value means more details).")]
     public int detailResolution = 256;
-    public int detailResolutionPerPacht = 16;
+    public int detailResolutionPerPatch = 16;
     public float wavingGrassStrength = 0.2f;
     public float wavingGrassAmount = 0.5f;
     public Color wavingGrassTint;
@@ -50,18 +50,18 @@ public class InfiniteTerrain : MonoBehaviour
     [Header("Alphamap")]
     public int alphamapResolution = 512;
 
-    [Header("Limite de Chunks")]
+    [Header("Chunk Limit")]
     public int maxChunkCount = 50;
 
     public TerrainObjectSpawner objectSpawner;
 
-    // Campos privados para controle interno
+    // Private fields for internal control
     private Dictionary<Vector2Int, Terrain> terrainChunks = new Dictionary<Vector2Int, Terrain>();
     private Queue<Vector2Int> chunkQueue = new Queue<Vector2Int>();
     private bool isChunkCoroutineRunning = false;
     private Vector2Int lastPlayerChunkCoord = new Vector2Int(int.MinValue, int.MinValue);
 
-    [Header("Configurações da Camada Global")]
+    [Header("Global Layer Settings")]
     public GlobalLayerDefinition[] globalLayerDefinitions;
 
     private void Awake()
@@ -72,28 +72,33 @@ public class InfiniteTerrain : MonoBehaviour
             return;
         }
         Instance = this;
-        // Se desejar que essa instância persista entre cenas, descomente a linha abaixo:
+        // Uncomment the line below if you want this instance to persist between scenes:
         // DontDestroyOnLoad(gameObject);
     }
 
     void Update()
     {
-        Vector2Int currentPlayerChunk = new Vector2Int(
-            Mathf.FloorToInt(player.position.x / chunkSize),
-            Mathf.FloorToInt(player.position.z / chunkSize)
-        );
+        Vector2Int currentPlayerChunk = GetPlayerChunkCoord();
 
         if (currentPlayerChunk != lastPlayerChunkCoord)
         {
-            //Debug.Log("Chunks atualizados");
-            AtualizarChunks();
+            // Chunks updated
+            UpdateChunks();
             lastPlayerChunkCoord = currentPlayerChunk;
         }
     }
 
-    void AtualizarChunks()
+    Vector2Int GetPlayerChunkCoord()
     {
-        // Remove chunks nulos
+        return new Vector2Int(
+            Mathf.FloorToInt(player.position.x / chunkSize),
+            Mathf.FloorToInt(player.position.z / chunkSize)
+        );
+    }
+
+    void UpdateChunks()
+    {
+        // Remove null chunks
         List<Vector2Int> keysToClean = new List<Vector2Int>();
         foreach (var kv in terrainChunks)
         {
@@ -103,12 +108,9 @@ public class InfiniteTerrain : MonoBehaviour
         foreach (var key in keysToClean)
             terrainChunks.Remove(key);
 
-        Vector2Int playerChunkCoord = new Vector2Int(
-            Mathf.FloorToInt(player.position.x / chunkSize),
-            Mathf.FloorToInt(player.position.z / chunkSize)
-        );
+        Vector2Int playerChunkCoord = GetPlayerChunkCoord();
 
-        // Enfileira os chunks dentro da área de renderização
+        // Enqueue chunks within the render area
         for (int x = -renderDistance; x <= renderDistance; x++)
         {
             for (int z = -renderDistance; z <= renderDistance; z++)
@@ -125,10 +127,10 @@ public class InfiniteTerrain : MonoBehaviour
             isChunkCoroutineRunning = true;
         }
 
-        LimitarChunks();
+        LimitChunks();
     }
 
-    void LimitarChunks()
+    void LimitChunks()
     {
         if (terrainChunks.Count <= maxChunkCount)
             return;
@@ -160,28 +162,27 @@ public class InfiniteTerrain : MonoBehaviour
         while (chunkQueue.Count > 0)
         {
             Vector2Int coord = chunkQueue.Dequeue();
-            CriarChunkAsync(coord);
+            CreateChunkAsync(coord);
             yield return new WaitForSeconds(0.5f);
         }
         isChunkCoroutineRunning = false;
     }
 
-    async void CriarChunkAsync(Vector2Int coord)
+    async void CreateChunkAsync(Vector2Int coord)
     {
         Vector3 chunkWorldPos = new Vector3(coord.x * chunkSize, 0, coord.y * chunkSize);
 
-        // Determina o bioma predominante para este chunk (usando a posição central)
-        BiomeDefinition biomeAtCenter = GetBiomeAtPosition(chunkWorldPos);
+        // Determine the predominant biome for this chunk (using the center position)
+        BiomeDefinition centerBiome = GetBiomeAtPosition(chunkWorldPos);
 
-        // Calcula quantas layers teremos: as do bioma + global layers (se definidas)
-        int biomeLayerCount = (biomeAtCenter.terrainLayerDefinitions != null ? biomeAtCenter.terrainLayerDefinitions.Length : 0);
+        int biomeLayerCount = (centerBiome.terrainLayerDefinitions != null ? centerBiome.terrainLayerDefinitions.Length : 0);
         int globalLayerCount = (globalLayerDefinitions != null ? globalLayerDefinitions.Length : 0);
         int totalLayers = biomeLayerCount + globalLayerCount;
 
         var result = await Task.Run(() =>
         {
-            // Gera as alturas com blending entre biomas
-            float[,] alturas = GenerateHeights(chunkWorldPos);
+            // Generate heights with blending between biomes
+            float[,] heights = GenerateHeights(chunkWorldPos);
             float[,,] splatmapData = null;
 
             if (totalLayers > 0)
@@ -191,17 +192,17 @@ public class InfiniteTerrain : MonoBehaviour
                 {
                     for (int x = 0; x < alphamapResolution; x++)
                     {
-                        float heightNormalized = alturas[z, x];
+                        float heightNormalized = heights[z, x];
                         float worldHeight = heightNormalized * terrainHeight;
-                        float slope = CalcularSlope(alturas, x, z);
+                        float slope = CalculateSlope(heights, x, z);
 
                         float totalWeight = 0f;
                         float[] weights = new float[totalLayers];
 
-                        // Calcula pesos para as layers do bioma
+                        // Calculate weights for biome layers
                         for (int i = 0; i < biomeLayerCount; i++)
                         {
-                            TerrainLayerDefinition def = biomeAtCenter.terrainLayerDefinitions[i];
+                            TerrainLayerDefinition def = centerBiome.terrainLayerDefinitions[i];
                             float weight = 1f;
                             if (worldHeight < def.minHeight || worldHeight > def.maxHeight)
                                 weight = 0f;
@@ -211,7 +212,7 @@ public class InfiniteTerrain : MonoBehaviour
                             totalWeight += weight;
                         }
 
-                        // Calcula pesos para cada global layer
+                        // Calculate weights for global layers
                         for (int i = 0; i < globalLayerCount; i++)
                         {
                             GlobalLayerDefinition globalDef = globalLayerDefinitions[i];
@@ -224,7 +225,7 @@ public class InfiniteTerrain : MonoBehaviour
                             totalWeight += weight;
                         }
 
-                        // Caso nenhum peso seja atribuído, define fallback para a primeira layer disponível
+                        // Fallback: if no weight is assigned, set fallback to the first available layer
                         if (totalWeight == 0f)
                         {
                             if (biomeLayerCount > 0)
@@ -247,10 +248,10 @@ public class InfiniteTerrain : MonoBehaviour
                 }
             }
 
-            return (alturas, splatmapData);
+            return (heights, splatmapData);
         });
 
-        float[,] alturasResult = result.alturas;
+        float[,] heightsResult = result.heights;
         float[,,] splatmapDataResult = result.splatmapData;
 
         TerrainData terrainData = new TerrainData();
@@ -262,16 +263,16 @@ public class InfiniteTerrain : MonoBehaviour
         terrainData.wavingGrassTint = wavingGrassTint;
         terrainData.wavingGrassSpeed = 0;
 
-        terrainData.SetHeights(0, 0, alturasResult);
+        terrainData.SetHeights(0, 0, heightsResult);
 
-        // Configura as layers do TerrainData usando as layers do bioma e as global layers, se definidas
+        // Configure TerrainData layers using biome layers and global layers if defined
         if (totalLayers > 0)
         {
             TerrainLayer[] layers = new TerrainLayer[totalLayers];
-            // Layers do bioma
+            // Biome layers
             for (int i = 0; i < biomeLayerCount; i++)
             {
-                layers[i] = biomeAtCenter.terrainLayerDefinitions[i].terrainLayer;
+                layers[i] = centerBiome.terrainLayerDefinitions[i].terrainLayer;
             }
             // Global layers
             for (int i = 0; i < globalLayerCount; i++)
@@ -282,29 +283,32 @@ public class InfiniteTerrain : MonoBehaviour
             terrainData.SetAlphamaps(0, 0, splatmapDataResult);
         }
 
-        AplicarDetalhesGrama(terrainData, splatmapDataResult, biomeAtCenter);
+        ApplyGrassDetails(terrainData, splatmapDataResult, centerBiome);
 
-        GameObject terrenoObj = Terrain.CreateTerrainGameObject(terrainData);
-        terrenoObj.transform.SetParent(transform);
-        terrenoObj.transform.position = chunkWorldPos;
-        Terrain terreno = terrenoObj.GetComponent<Terrain>();
+        GameObject terrainObj = Terrain.CreateTerrainGameObject(terrainData);
+        terrainObj.transform.SetParent(transform);
+        terrainObj.transform.position = chunkWorldPos;
+        Terrain terrain = terrainObj.GetComponent<Terrain>();
 
-        // Adiciona o componente e atribui o bioma predominante
-        TerrainChunkInfo chunkInfo = terrenoObj.AddComponent<TerrainChunkInfo>();
-        chunkInfo.biome = biomeAtCenter;
+        // Add the TerrainChunkInfo component and assign the predominant biome
+        TerrainChunkInfo chunkInfo = terrainObj.AddComponent<TerrainChunkInfo>();
+        chunkInfo.biome = centerBiome;
 
         if (!terrainChunks.ContainsKey(coord))
-            terrainChunks.Add(coord, terreno);
+            terrainChunks.Add(coord, terrain);
+
+        // Atualiza os vizinhos imediatamente após a criação
+        UpdateNeighbors(coord, chunkInfo);
 
         if (objectSpawner != null)
         {
-            StartCoroutine(objectSpawner.SpawnObjectsOnChunkCoroutine(terreno, chunkWorldPos, terrenoObj, chunkSize));
+            StartCoroutine(objectSpawner.SpawnObjectsOnChunkCoroutine(terrain, chunkWorldPos, terrainObj, chunkSize));
         }
     }
 
     private float[,] GenerateHeights(Vector3 offset)
     {
-        float[,] alturas = new float[terrainResolution, terrainResolution];
+        float[,] heights = new float[terrainResolution, terrainResolution];
         for (int x = 0; x < terrainResolution; x++)
         {
             for (int z = 0; z < terrainResolution; z++)
@@ -313,11 +317,11 @@ public class InfiniteTerrain : MonoBehaviour
                 float percentZ = (float)z / (terrainResolution - 1);
                 float worldX = offset.x + percentX * chunkSize;
                 float worldZ = offset.z + percentZ * chunkSize;
-                float altura = ComputeBlendedHeight(worldX, worldZ);
-                alturas[z, x] = altura / terrainHeight;
+                float height = ComputeBlendedHeight(worldX, worldZ);
+                heights[z, x] = height / terrainHeight;
             }
         }
-        return alturas;
+        return heights;
     }
 
     private float ComputeBlendedHeight(float worldX, float worldZ)
@@ -337,13 +341,13 @@ public class InfiniteTerrain : MonoBehaviour
         wForest /= total;
         wTundra /= total;
 
-        BiomeDefinition desert = GetBiomeByType(BiomeType.Deserto);
-        BiomeDefinition forest = GetBiomeByType(BiomeType.Floresta);
+        BiomeDefinition desert = GetBiomeByType(BiomeType.Desert);
+        BiomeDefinition forest = GetBiomeByType(BiomeType.Forest);
         BiomeDefinition tundra = GetBiomeByType(BiomeType.Tundra);
 
-        float hDesert = CalcularAltura(worldX, worldZ, desert);
-        float hForest = CalcularAltura(worldX, worldZ, forest);
-        float hTundra = CalcularAltura(worldX, worldZ, tundra);
+        float hDesert = CalculateHeight(worldX, worldZ, desert);
+        float hForest = CalculateHeight(worldX, worldZ, forest);
+        float hTundra = CalculateHeight(worldX, worldZ, tundra);
 
         return wDesert * hDesert + wForest * hForest + wTundra * hTundra;
     }
@@ -362,40 +366,40 @@ public class InfiniteTerrain : MonoBehaviour
     {
         float bn = Mathf.PerlinNoise((pos.x + seed) * biomeNoiseScale, (pos.z + seed) * biomeNoiseScale);
         if (bn < 0.33f)
-            return GetBiomeByType(BiomeType.Deserto);
+            return GetBiomeByType(BiomeType.Desert);
         else if (bn < 0.66f)
-            return GetBiomeByType(BiomeType.Floresta);
+            return GetBiomeByType(BiomeType.Forest);
         else
             return GetBiomeByType(BiomeType.Tundra);
     }
 
-    void AplicarDetalhesGrama(TerrainData terrainData, float[,,] splatmapData, BiomeDefinition biome)
+    void ApplyGrassDetails(TerrainData terrainData, float[,,] splatmapData, BiomeDefinition biome)
     {
-        // Verifica se o bioma possui uma configuração de grama definida
+        // Check if the biome has a defined grass configuration
         if (biome.grassDetailDefinition == null || splatmapData == null)
             return;
 
         GrassDetailDefinition grassDef = biome.grassDetailDefinition;
 
-        // Valida o índice da camada de grama com base nas layers do bioma
+        // Validate the grass layer index based on the biome layers
         if (biome.terrainLayerDefinitions == null || grassDef.targetLayerIndex < 0 ||
             grassDef.targetLayerIndex >= biome.terrainLayerDefinitions.Length)
         {
-            Debug.LogError("Índice da camada de grama inválido!");
+            Debug.LogError("Invalid grass layer index!");
             return;
         }
 
-        // Verifica se as configurações são válidas de acordo com o modo de renderização
+        // Check if the settings are valid based on the render mode
         bool validForMesh = grassDef.grassRenderMode == GrassRenderMode.Mesh && grassDef.grassPrefab != null;
         bool validForBillboard = grassDef.grassRenderMode == GrassRenderMode.Billboard2D && grassDef.grassTexture != null;
 
         if (!validForMesh && !validForBillboard)
         {
-            Debug.LogError("Configure corretamente o prefab ou a texture para a grama, conforme o modo selecionado.");
+            Debug.LogError("Please configure the grass prefab or texture according to the selected mode.");
             return;
         }
 
-        terrainData.SetDetailResolution(detailResolution, detailResolutionPerPacht);
+        terrainData.SetDetailResolution(detailResolution, detailResolutionPerPatch);
         DetailPrototype[] detailPrototypes = new DetailPrototype[1];
         DetailPrototype prototype = new DetailPrototype();
 
@@ -439,71 +443,61 @@ public class InfiniteTerrain : MonoBehaviour
         terrainData.SetDetailLayer(0, 0, 0, detailLayer);
     }
 
-    public void RenomearChunksFronteiraBioma()
+
+    void UpdateNeighbors(Vector2Int coord, TerrainChunkInfo chunkInfo)
     {
-        // Percorre todos os chunks existentes
-        foreach (var kv in terrainChunks)
+        Vector2Int[] directions = new Vector2Int[]
         {
-            Vector2Int coord = kv.Key;
-            Terrain currentTerrain = kv.Value;
-            TerrainChunkInfo currentInfo = currentTerrain.GetComponent<TerrainChunkInfo>();
+        new Vector2Int(0, 1),   // Norte
+        new Vector2Int(1, 0),   // Leste
+        new Vector2Int(0, -1),  // Sul
+        new Vector2Int(-1, 0)   // Oeste
+        };
 
-            if (currentInfo == null)
-                continue; // Caso não haja a informação do bioma, pula para o próximo
-
-            bool temVizinhoDiferente = false;
-
-            // Define as direções dos vizinhos (norte, leste, sul e oeste)
-            Vector2Int[] direcoes = new Vector2Int[]
+        foreach (Vector2Int direction in directions)
+        {
+            Vector2Int neighborCoord = coord + direction;
+            if (terrainChunks.TryGetValue(neighborCoord, out Terrain neighborTerrain))
             {
-                new Vector2Int(0, 1),   // Norte
-                new Vector2Int(1, 0),   // Leste
-                new Vector2Int(0, -1),  // Sul
-                new Vector2Int(-1, 0)   // Oeste
-            };
-
-            foreach (Vector2Int direcao in direcoes)
-            {
-                Vector2Int neighborCoord = coord + direcao;
-                if (terrainChunks.TryGetValue(neighborCoord, out Terrain neighborTerrain))
+                TerrainChunkInfo neighborInfo = neighborTerrain.GetComponent<TerrainChunkInfo>();
+                if (neighborInfo != null)
                 {
-                    TerrainChunkInfo neighborInfo = neighborTerrain.GetComponent<TerrainChunkInfo>();
-                    // Se o vizinho existir e tiver um bioma diferente
-                    if (neighborInfo != null && neighborInfo.biome != currentInfo.biome)
+                    // Se os biomas forem diferentes, atualize ambos os chunks
+                    if (neighborInfo.biome != chunkInfo.biome)
                     {
-                        neighborInfo.hasNeibhorChunk = true;
-                        temVizinhoDiferente = true;
-                        break;
+                        chunkInfo.hasDifferentNeighbor = true;
+                        neighborInfo.hasDifferentNeighbor = true;
+                        chunkInfo.neighborBiome = neighborInfo.biome;
+                        neighborInfo.neighborBiome = chunkInfo.biome;
+
+                        // Opcional: atualiza o nome para identificar o chunk com vizinhança diferente
+                        neighborTerrain.gameObject.name = "Neighbor_" + neighborCoord;
+                        // Também atualiza o chunk atual, se desejar:
+                        // terrainChunks[coord].gameObject.name = "Neighbor_" + coord;
                     }
                 }
-            }
-
-            // Se o chunk atual faz fronteira com um bioma diferente, renomeia o GameObject
-            if (temVizinhoDiferente)
-            {
-                currentTerrain.gameObject.name = "Vizinho_" + coord;
             }
         }
     }
 
-    float CalcularAltura(float worldX, float worldZ, BiomeDefinition biome)
+    float CalculateHeight(float worldX, float worldZ, BiomeDefinition biome)
     {
         float y = Mathf.PerlinNoise((worldX + seed) * biome.highFrequencyScale, (worldZ + seed) * biome.highFrequencyScale) * biome.highFrequencyAmplitude;
         y += Mathf.PerlinNoise((worldX + seed) * biome.lowFrequencyScale, (worldZ + seed) * biome.lowFrequencyScale) * biome.lowFrequencyAmplitude;
         return y;
     }
 
-    float CalcularSlope(float[,] alturas, int x, int z)
+    float CalculateSlope(float[,] heights, int x, int z)
     {
         int xLeft = Mathf.Max(x - 1, 0);
-        int xRight = Mathf.Min(x + 1, alturas.GetLength(1) - 1);
+        int xRight = Mathf.Min(x + 1, heights.GetLength(1) - 1);
         int zDown = Mathf.Max(z - 1, 0);
-        int zUp = Mathf.Min(z + 1, alturas.GetLength(0) - 1);
+        int zUp = Mathf.Min(z + 1, heights.GetLength(0) - 1);
 
-        float heightL = alturas[z, xLeft] * terrainHeight;
-        float heightR = alturas[z, xRight] * terrainHeight;
-        float heightD = alturas[zDown, x] * terrainHeight;
-        float heightU = alturas[zUp, x] * terrainHeight;
+        float heightL = heights[z, xLeft] * terrainHeight;
+        float heightR = heights[z, xRight] * terrainHeight;
+        float heightD = heights[zDown, x] * terrainHeight;
+        float heightU = heights[zUp, x] * terrainHeight;
 
         float cellSize = chunkSize / (float)(terrainResolution - 1);
         float dX = (heightR - heightL) / (2f * cellSize);

@@ -3,7 +3,9 @@ using UnityEngine;
 public class TerrainChunkInfo : MonoBehaviour
 {
     public BiomeDefinition biome;
-    public bool hasNeibhorChunk = false;
+    public bool hasDifferentNeighbor;      
+
+   public BiomeDefinition neighborBiome;
    
 
 }

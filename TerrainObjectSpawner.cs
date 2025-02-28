@@ -38,6 +38,8 @@ public class ObjectSpawnDefinition
     [Header("Raridade do Objeto")]
     [Tooltip("Nível de raridade do objeto. Valores maiores tornam o objeto mais raro (mínimo 1).")]
     public int rarityLevel = 1;
+
+
 }
 
 // Estruturas para armazenar modificações do terreno
