@@ -4,42 +4,6 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-// [System.Serializable]
-// public class ObjectSpawnDefinition
-// {
-//     [Tooltip("Prefab do objeto a ser instanciado.")]
-//     public GameObject prefab;
-
-//     [Tooltip("Quantidade máxima de objetos por chunk.")]
-//     public int maxCount = 50;
-
-//     [Tooltip("Valor de threshold do Perlin Noise para spawn.")]
-//     public float spawnThreshold = 0.5f;
-
-//     [Tooltip("Escala do Perlin Noise.")]
-//     public float noiseScale = 0.1f;
-
-//     [Tooltip("Altura mínima para que o objeto seja instanciado.")]
-//     public float minHeight = 20f;
-
-//     [Tooltip("Altura máxima para que o objeto seja instanciado.")]
-//     public float maxHeight = 200f;
-
-//     [Header("Pintura do Terreno")]
-//     [Tooltip("Índice da terrain layer que será usada para pintar a área do objeto.")]
-//     public int paintLayerIndex;
-
-//     [Tooltip("Raio (em unidades) para pintar o terreno ao redor do objeto.")]
-//     public float paintRadius = 5f;
-
-//     [Tooltip("Distância mínima entre os objetos instanciados.")]
-//     public float minDistance = 1f; // Modifique conforme a necessidade
-
-//     [Header("Raridade do Objeto")]
-//     [Tooltip("Nível de raridade do objeto. Valores maiores tornam o objeto mais raro (mínimo 1).")]
-//     public int rarityLevel = 1;
-// }
-
 [System.Serializable]
 public class ObjectSpawnDefinition
 {
@@ -187,7 +151,11 @@ public class TerrainObjectSpawner : MonoBehaviour
                             {
                                 // Seleciona aleatoriamente um prefab da lista
                                 GameObject selectedPrefab = spawnDef.prefabs[Random.Range(0, spawnDef.prefabs.Length)];
+                                // GameObject spawnedObject = Instantiate(selectedPrefab, posWorld, Quaternion.identity, objectsParent.transform);
+
                                 GameObject spawnedObject = Instantiate(selectedPrefab, posWorld, Quaternion.identity, objectsParent.transform);
+                                spawnedObject.transform.localScale = selectedPrefab.transform.localScale;
+
                                 spawnedPositions.Add(posWorld);
 
                                 // Acumula as modificações para remoção da grama e pintura do terreno
