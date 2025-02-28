@@ -1,5 +1,9 @@
-// using System.Collections.Generic;
-// using UnityEngine;
+
+
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
 // [System.Serializable]
 // public class ObjectSpawnDefinition
 // {
@@ -19,7 +23,7 @@
 //     public float minHeight = 20f;
 
 //     [Tooltip("Altura máxima para que o objeto seja instanciado.")]
-//     public float maxHeight = 200f; // Novo campo para definir a altura máxima
+//     public float maxHeight = 200f;
 
 //     [Header("Pintura do Terreno")]
 //     [Tooltip("Índice da terrain layer que será usada para pintar a área do objeto.")]
@@ -29,177 +33,18 @@
 //     public float paintRadius = 5f;
 
 //     [Tooltip("Distância mínima entre os objetos instanciados.")]
-//     public float minDistance = 2f;
+//     public float minDistance = 1f; // Modifique conforme a necessidade
 
+//     [Header("Raridade do Objeto")]
+//     [Tooltip("Nível de raridade do objeto. Valores maiores tornam o objeto mais raro (mínimo 1).")]
+//     public int rarityLevel = 1;
 // }
-
-
-// public class TerrainObjectSpawner : MonoBehaviour
-// {
-//     // Você pode passar o seed do terreno aqui, ou defini-lo como parâmetro do método
-//     public int seed = 42;
-
-//     [Tooltip("Definições para spawn de objetos (árvores, rochas, etc.).")]
-//     public ObjectSpawnDefinition[] objectSpawnDefinitions;
-
-
-
-
-
-//     public void SpawnObjectsOnChunk(Terrain terrain, Vector3 chunkWorldPos, GameObject chunk, int chunkSize)
-//     {
-//         GameObject objectsParent = new GameObject("SpawnedObjects_" + chunkWorldPos);
-//         // Define o objeto 'parent' como filho do chunk
-//         objectsParent.transform.SetParent(chunk.transform);
-
-//         if (objectSpawnDefinitions != null && objectSpawnDefinitions.Length > 0)
-//         {
-//             foreach (ObjectSpawnDefinition spawnDef in objectSpawnDefinitions)
-//             {
-//                 int spawnedCount = 0;
-//                 int attempts = 0;
-//                 while (spawnedCount < spawnDef.maxCount && attempts < spawnDef.maxCount * 10)
-//                 {
-//                     attempts++;
-//                     // Posição aleatória dentro do chunk
-//                     float posX = Random.Range(0f, chunkSize);
-//                     float posZ = Random.Range(0f, chunkSize);
-//                     Vector3 posWorld = new Vector3(chunkWorldPos.x + posX, 0, chunkWorldPos.z + posZ);
-//                     // Obtém a altura do terreno na posição
-//                     float y = terrain.SampleHeight(posWorld);
-//                     posWorld.y = y;
-
-//                     // Verifica se a posição atende ao critério de altura
-//                     if (y >= spawnDef.minHeight && y <= spawnDef.maxHeight)
-//                     {
-//                         // Usa Perlin Noise para decidir o spawn
-//                         float noiseValue = Mathf.PerlinNoise((posWorld.x + seed) * spawnDef.noiseScale, (posWorld.z + seed) * spawnDef.noiseScale);
-//                         if (noiseValue > spawnDef.spawnThreshold)
-//                         {// Dentro do método de spawn, após instanciar o objeto:
-//                          //   GameObject spawnedObject = Instantiate(spawnDef.prefab, posWorld, Quaternion.identity, parent.transform);
-//                          // Instancia o objeto e o torna filho do objeto 'parent'
-//                             GameObject spawnedObject = Instantiate(spawnDef.prefab, posWorld, Quaternion.identity, objectsParent.transform);
-//                             RemoveGrassUnderObject(terrain, posWorld, 2f); // 2f representa o raio de exclusão, ajuste conforme necessário.
-
-//                             // Pinta o terreno na área onde o objeto foi colocado, usando a terrain layer definida.
-//                             PaintTerrainAtPosition(terrain, posWorld, spawnDef.paintLayerIndex, spawnDef.paintRadius);
-//                             spawnedCount++;
-//                         }
-//                     }
-//                 }
-//             }
-//         }
-//         // // Após instanciar os objetos, adiciona o script de mesh combine ao objectsParent.
-//         // MeshCombinerMultiMaterial combiner = objectsParent.AddComponent<MeshCombinerMultiMaterial>();
-//         // combiner.desactiveOriginals = true; // Define se os objetos originais serão destruídos após a combinação.
-
-//         // combiner.CombineMeshes();
-//         // combiner.combinedObject.SetActive(false);
-
-//     }
-
-//     /// <summary>
-//     /// Remove a grama do terrain na área onde o objeto foi instanciado.
-//     /// </summary>
-//     /// <param name="terrain">Terrain onde remover a grama.</param>
-//     /// <param name="objectWorldPos">Posição do objeto no mundo.</param>
-//     /// <param name="exclusionRadius">Raio (em unidades) para remoção da grama.</param>
-//     public void RemoveGrassUnderObject(Terrain terrain, Vector3 objectWorldPos, float exclusionRadius)
-//     {
-//         TerrainData terrainData = terrain.terrainData;
-//         int detailResolution = terrainData.detailResolution;
-//         int[,] detailLayer = terrainData.GetDetailLayer(0, 0, detailResolution, detailResolution, 0);
-
-//         // Converte a posição do objeto para coordenadas normalizadas relativas ao terreno.
-//         Vector3 terrainPos = terrain.transform.position;
-//         float normX = (objectWorldPos.x - terrainPos.x) / terrainData.size.x;
-//         float normZ = (objectWorldPos.z - terrainPos.z) / terrainData.size.z;
-
-//         int centerX = Mathf.RoundToInt(normX * detailResolution);
-//         int centerZ = Mathf.RoundToInt(normZ * detailResolution);
-//         // Converte o raio de exclusão de unidades para células do detail map.
-//         int radiusInCells = Mathf.RoundToInt((exclusionRadius / terrainData.size.x) * detailResolution);
-
-//         // Percorre as células do detail layer e zera as que estiverem dentro do círculo de exclusão.
-//         for (int z = centerZ - radiusInCells; z <= centerZ + radiusInCells; z++)
-//         {
-//             for (int x = centerX - radiusInCells; x <= centerX + radiusInCells; x++)
-//             {
-//                 if (x >= 0 && x < detailResolution && z >= 0 && z < detailResolution)
-//                 {
-//                     int dx = x - centerX;
-//                     int dz = z - centerZ;
-//                     if (dx * dx + dz * dz <= radiusInCells * radiusInCells)
-//                     {
-//                         detailLayer[z, x] = 0;
-//                     }
-//                 }
-//             }
-//         }
-//         terrainData.SetDetailLayer(0, 0, 0, detailLayer);
-//     }
-
-
-//     public void PaintTerrainAtPosition(Terrain terrain, Vector3 worldPos, int targetLayerIndex, float paintRadius)
-//     {
-//         TerrainData terrainData = terrain.terrainData;
-//         int alphamapResolution = terrainData.alphamapResolution;
-
-//         // Converte a posição do mundo para coordenadas normalizadas do terreno.
-//         Vector3 terrainPos = terrain.transform.position;
-//         float normX = (worldPos.x - terrainPos.x) / terrainData.size.x;
-//         float normZ = (worldPos.z - terrainPos.z) / terrainData.size.z;
-
-//         int centerX = Mathf.RoundToInt(normX * alphamapResolution);
-//         int centerZ = Mathf.RoundToInt(normZ * alphamapResolution);
-
-//         // Converte o raio de unidades do mundo para células do alphamap.
-//         int radiusInCells = Mathf.RoundToInt((paintRadius / terrainData.size.x) * alphamapResolution);
-
-//         // Define os limites da área a ser alterada.
-//         int xStart = Mathf.Max(0, centerX - radiusInCells);
-//         int xEnd = Mathf.Min(alphamapResolution, centerX + radiusInCells);
-//         int zStart = Mathf.Max(0, centerZ - radiusInCells);
-//         int zEnd = Mathf.Min(alphamapResolution, centerZ + radiusInCells);
-
-//         int width = xEnd - xStart;
-//         int height = zEnd - zStart;
-
-//         // Obtém a parte do alphamap que será modificada.
-//         float[,,] alphamaps = terrainData.GetAlphamaps(xStart, zStart, width, height);
-//         int numLayers = terrainData.terrainLayers.Length;
-
-//         for (int z = 0; z < height; z++)
-//         {
-//             for (int x = 0; x < width; x++)
-//             {
-//                 int dx = (x + xStart) - centerX;
-//                 int dz = (z + zStart) - centerZ;
-//                 // Verifica se a célula está dentro do círculo de raio especificado.
-//                 if (dx * dx + dz * dz <= radiusInCells * radiusInCells)
-//                 {
-//                     // Define o valor 1 para o layer alvo e 0 para os demais.
-//                     for (int i = 0; i < numLayers; i++)
-//                     {
-//                         alphamaps[z, x, i] = (i == targetLayerIndex) ? 1f : 0f;
-//                     }
-//                 }
-//             }
-//         }
-//         // Atualiza o alphamap do terreno com a região modificada.
-//         terrainData.SetAlphamaps(xStart, zStart, alphamaps);
-//     }
-
-
-// }
-using System.Collections.Generic;
-using UnityEngine;
 
 [System.Serializable]
 public class ObjectSpawnDefinition
 {
-    [Tooltip("Prefab do objeto a ser instanciado.")]
-    public GameObject prefab;
+    [Tooltip("Lista de prefabs do objeto a ser instanciado.")]
+    public GameObject[] prefabs;
 
     [Tooltip("Quantidade máxima de objetos por chunk.")]
     public int maxCount = 50;
@@ -231,6 +76,20 @@ public class ObjectSpawnDefinition
     public int rarityLevel = 1;
 }
 
+// Estruturas para armazenar modificações do terreno
+public struct GrassModification
+{
+    public Vector3 position;
+    public float exclusionRadius;
+}
+
+public struct PaintModification
+{
+    public Vector3 position;
+    public int paintLayerIndex;
+    public float paintRadius;
+}
+
 public class TerrainObjectSpawner : MonoBehaviour
 {
     // Seed do terreno (pode ser passado como parâmetro também)
@@ -239,15 +98,50 @@ public class TerrainObjectSpawner : MonoBehaviour
     [Tooltip("Definições para spawn de objetos (árvores, rochas, etc.).")]
     public ObjectSpawnDefinition[] objectSpawnDefinitions;
 
-    public void SpawnObjectsOnChunk(Terrain terrain, Vector3 chunkWorldPos, GameObject chunk, int chunkSize)
+    /// <summary>
+    /// Coroutine para distribuir o processamento de spawn de objetos por múltiplos frames.
+    /// O uso de corrotinas (ou Job System, se desejado) evita picos de processamento e quedas na taxa de frames.
+    /// </summary>
+    public IEnumerator SpawnObjectsOnChunkCoroutine(Terrain terrain, Vector3 chunkWorldPos, GameObject chunk, int chunkSize)
     {
+
+        if (terrain == null)
+        {
+            Debug.LogError("Terrain is null");
+            yield break;
+        }
+
         GameObject objectsParent = new GameObject("SpawnedObjects_" + chunkWorldPos);
         objectsParent.transform.SetParent(chunk.transform);
+
+        // Cache de referências para evitar chamadas repetitivas
+        TerrainData terrainData = terrain.terrainData;
+        Vector3 terrainPos = terrain.transform.position;
+
+        // Listas para acumular as modificações de terreno em batch
+        List<GrassModification> grassModifications = new List<GrassModification>();
+        List<PaintModification> paintModifications = new List<PaintModification>();
 
         if (objectSpawnDefinitions != null && objectSpawnDefinitions.Length > 0)
         {
             foreach (ObjectSpawnDefinition spawnDef in objectSpawnDefinitions)
             {
+                // Pré-cálculo do mapa de ruído para o chunk utilizando o noiseScale desta definição.
+                // Esse cálculo pesado pode ser otimizado com Job System ou tarefas assíncronas, se necessário.
+                int noiseResolution = chunkSize + 1;
+                float[,] noiseMap = new float[noiseResolution, noiseResolution];
+                for (int z = 0; z < noiseResolution; z++)
+                {
+                    for (int x = 0; x < noiseResolution; x++)
+                    {
+                        float worldX = chunkWorldPos.x + x;
+                        float worldZ = chunkWorldPos.z + z;
+                        noiseMap[x, z] = Mathf.PerlinNoise((worldX + seed) * spawnDef.noiseScale, (worldZ + seed) * spawnDef.noiseScale);
+                    }
+                    // Distribui o processamento: espera um frame após processar cada linha
+                    yield return null;
+                }
+
                 // Lista para armazenar as posições dos objetos já spawnados para essa definição
                 List<Vector3> spawnedPositions = new List<Vector3>();
 
@@ -260,6 +154,7 @@ public class TerrainObjectSpawner : MonoBehaviour
                     float posX = Random.Range(0f, chunkSize);
                     float posZ = Random.Range(0f, chunkSize);
                     Vector3 posWorld = new Vector3(chunkWorldPos.x + posX, 0, chunkWorldPos.z + posZ);
+
                     // Obtém a altura do terreno na posição
                     float y = terrain.SampleHeight(posWorld);
                     posWorld.y = y;
@@ -267,9 +162,12 @@ public class TerrainObjectSpawner : MonoBehaviour
                     // Verifica se a altura está dentro dos limites definidos
                     if (y >= spawnDef.minHeight && y <= spawnDef.maxHeight)
                     {
-                        // Usa o Perlin Noise para decidir o spawn
-                        float noiseValue = Mathf.PerlinNoise((posWorld.x + seed) * spawnDef.noiseScale, (posWorld.z + seed) * spawnDef.noiseScale);
-                        // Além do threshold, aplica a raridade: chance de 1/rarityLevel de spawn
+                        // Amostra o valor do Perlin Noise a partir do mapa pré-calculado.
+                        int ix = Mathf.Clamp(Mathf.RoundToInt(posX), 0, chunkSize);
+                        int iz = Mathf.Clamp(Mathf.RoundToInt(posZ), 0, chunkSize);
+                        float noiseValue = noiseMap[ix, iz];
+
+                        // Aplica o threshold e a raridade (chance de 1/rarityLevel)
                         if (noiseValue > spawnDef.spawnThreshold && Random.Range(0, spawnDef.rarityLevel) == 0)
                         {
                             // Verifica se a posição está suficientemente distante dos objetos já spawnados
@@ -285,46 +183,70 @@ public class TerrainObjectSpawner : MonoBehaviour
                             if (tooClose)
                                 continue;
 
-                            // Instancia o objeto e o torna filho do 'objectsParent'
-                            GameObject spawnedObject = Instantiate(spawnDef.prefab, posWorld, Quaternion.identity, objectsParent.transform);
-                            // Adiciona a posição à lista para futuras verificações
-                            spawnedPositions.Add(posWorld);
+                            if (spawnDef.prefabs != null && spawnDef.prefabs.Length > 0)
+                            {
+                                // Seleciona aleatoriamente um prefab da lista
+                                GameObject selectedPrefab = spawnDef.prefabs[Random.Range(0, spawnDef.prefabs.Length)];
+                                GameObject spawnedObject = Instantiate(selectedPrefab, posWorld, Quaternion.identity, objectsParent.transform);
+                                spawnedPositions.Add(posWorld);
 
-                            RemoveGrassUnderObject(terrain, posWorld, 2f);
-                            PaintTerrainAtPosition(terrain, posWorld, spawnDef.paintLayerIndex, spawnDef.paintRadius);
-                            spawnedCount++;
+                                // Acumula as modificações para remoção da grama e pintura do terreno
+                                grassModifications.Add(new GrassModification { position = posWorld, exclusionRadius = 2f });
+                                paintModifications.Add(new PaintModification { position = posWorld, paintLayerIndex = spawnDef.paintLayerIndex, paintRadius = spawnDef.paintRadius });
+
+                                spawnedCount++;
+                            }
+
+
+
                         }
                     }
+
+                    // Distribui o processamento a cada 100 iterações para evitar travamentos
+                    if (attempts % 100 == 0)
+                        yield return null;
                 }
+
+                // Aguarda um frame entre processamentos de diferentes definições
+                yield return null;
             }
         }
+
+        // Após spawnar todos os objetos do chunk, aplica as modificações no terreno em batch
+        BatchRemoveGrass(terrain, grassModifications);
+        BatchPaintTerrain(terrain, paintModifications);
     }
 
-    public void RemoveGrassUnderObject(Terrain terrain, Vector3 objectWorldPos, float exclusionRadius)
+    /// <summary>
+    /// Aplica em batch as remoções de grama acumuladas.
+    /// </summary>
+    public void BatchRemoveGrass(Terrain terrain, List<GrassModification> mods)
     {
         TerrainData terrainData = terrain.terrainData;
         int detailResolution = terrainData.detailResolution;
         int[,] detailLayer = terrainData.GetDetailLayer(0, 0, detailResolution, detailResolution, 0);
-
         Vector3 terrainPos = terrain.transform.position;
-        float normX = (objectWorldPos.x - terrainPos.x) / terrainData.size.x;
-        float normZ = (objectWorldPos.z - terrainPos.z) / terrainData.size.z;
 
-        int centerX = Mathf.RoundToInt(normX * detailResolution);
-        int centerZ = Mathf.RoundToInt(normZ * detailResolution);
-        int radiusInCells = Mathf.RoundToInt((exclusionRadius / terrainData.size.x) * detailResolution);
-
-        for (int z = centerZ - radiusInCells; z <= centerZ + radiusInCells; z++)
+        foreach (var mod in mods)
         {
-            for (int x = centerX - radiusInCells; x <= centerX + radiusInCells; x++)
+            float normX = (mod.position.x - terrainPos.x) / terrainData.size.x;
+            float normZ = (mod.position.z - terrainPos.z) / terrainData.size.z;
+            int centerX = Mathf.RoundToInt(normX * detailResolution);
+            int centerZ = Mathf.RoundToInt(normZ * detailResolution);
+            int radiusInCells = Mathf.RoundToInt((mod.exclusionRadius / terrainData.size.x) * detailResolution);
+
+            for (int z = centerZ - radiusInCells; z <= centerZ + radiusInCells; z++)
             {
-                if (x >= 0 && x < detailResolution && z >= 0 && z < detailResolution)
+                for (int x = centerX - radiusInCells; x <= centerX + radiusInCells; x++)
                 {
-                    int dx = x - centerX;
-                    int dz = z - centerZ;
-                    if (dx * dx + dz * dz <= radiusInCells * radiusInCells)
+                    if (x >= 0 && x < detailResolution && z >= 0 && z < detailResolution)
                     {
-                        detailLayer[z, x] = 0;
+                        int dx = x - centerX;
+                        int dz = z - centerZ;
+                        if (dx * dx + dz * dz <= radiusInCells * radiusInCells)
+                        {
+                            detailLayer[z, x] = 0;
+                        }
                     }
                 }
             }
@@ -332,45 +254,75 @@ public class TerrainObjectSpawner : MonoBehaviour
         terrainData.SetDetailLayer(0, 0, 0, detailLayer);
     }
 
-    public void PaintTerrainAtPosition(Terrain terrain, Vector3 worldPos, int targetLayerIndex, float paintRadius)
+    /// <summary>
+    /// Aplica em batch as pinturas de terreno acumuladas.
+    /// Calcula a área afetada por todas as modificações e atualiza os alphamaps de uma só vez.
+    /// </summary>
+    public void BatchPaintTerrain(Terrain terrain, List<PaintModification> mods)
     {
+        if (mods.Count == 0)
+            return;
+
         TerrainData terrainData = terrain.terrainData;
         int alphamapResolution = terrainData.alphamapResolution;
-
         Vector3 terrainPos = terrain.transform.position;
-        float normX = (worldPos.x - terrainPos.x) / terrainData.size.x;
-        float normZ = (worldPos.z - terrainPos.z) / terrainData.size.z;
 
-        int centerX = Mathf.RoundToInt(normX * alphamapResolution);
-        int centerZ = Mathf.RoundToInt(normZ * alphamapResolution);
-        int radiusInCells = Mathf.RoundToInt((paintRadius / terrainData.size.x) * alphamapResolution);
+        // Calcula os limites (em coordenadas de alphamap) de todas as modificações
+        int minX = alphamapResolution;
+        int minZ = alphamapResolution;
+        int maxX = 0;
+        int maxZ = 0;
 
-        int xStart = Mathf.Max(0, centerX - radiusInCells);
-        int xEnd = Mathf.Min(alphamapResolution, centerX + radiusInCells);
-        int zStart = Mathf.Max(0, centerZ - radiusInCells);
-        int zEnd = Mathf.Min(alphamapResolution, centerZ + radiusInCells);
+        // Armazena dados auxiliares para cada modificação
+        var modData = new List<(PaintModification mod, int centerX, int centerZ, int radiusInCells)>();
+        foreach (var mod in mods)
+        {
+            float normX = (mod.position.x - terrainPos.x) / terrainData.size.x;
+            float normZ = (mod.position.z - terrainPos.z) / terrainData.size.z;
+            int centerX = Mathf.RoundToInt(normX * alphamapResolution);
+            int centerZ = Mathf.RoundToInt(normZ * alphamapResolution);
+            int radiusInCells = Mathf.RoundToInt((mod.paintRadius / terrainData.size.x) * alphamapResolution);
+            modData.Add((mod, centerX, centerZ, radiusInCells));
 
-        int width = xEnd - xStart;
-        int height = zEnd - zStart;
+            minX = Mathf.Min(minX, centerX - radiusInCells);
+            minZ = Mathf.Min(minZ, centerZ - radiusInCells);
+            maxX = Mathf.Max(maxX, centerX + radiusInCells);
+            maxZ = Mathf.Max(maxZ, centerZ + radiusInCells);
+        }
 
-        float[,,] alphamaps = terrainData.GetAlphamaps(xStart, zStart, width, height);
+        // Limita a área dentro dos bounds válidos do alphamap
+        minX = Mathf.Max(0, minX);
+        minZ = Mathf.Max(0, minZ);
+        maxX = Mathf.Min(alphamapResolution, maxX);
+        maxZ = Mathf.Min(alphamapResolution, maxZ);
+        int width = maxX - minX;
+        int height = maxZ - minZ;
+
+        // Obtém os alphamaps da área afetada
+        float[,,] alphamaps = terrainData.GetAlphamaps(minX, minZ, width, height);
         int numLayers = terrainData.terrainLayers.Length;
 
-        for (int z = 0; z < height; z++)
+        // Para cada modificação, atualiza os alphamaps na região correspondente
+        foreach (var (mod, centerX, centerZ, radiusInCells) in modData)
         {
-            for (int x = 0; x < width; x++)
+            for (int z = 0; z < height; z++)
             {
-                int dx = (x + xStart) - centerX;
-                int dz = (z + zStart) - centerZ;
-                if (dx * dx + dz * dz <= radiusInCells * radiusInCells)
+                for (int x = 0; x < width; x++)
                 {
-                    for (int i = 0; i < numLayers; i++)
+                    int globalX = x + minX;
+                    int globalZ = z + minZ;
+                    int dx = globalX - centerX;
+                    int dz = globalZ - centerZ;
+                    if (dx * dx + dz * dz <= radiusInCells * radiusInCells)
                     {
-                        alphamaps[z, x, i] = (i == targetLayerIndex) ? 1f : 0f;
+                        for (int i = 0; i < numLayers; i++)
+                        {
+                            alphamaps[z, x, i] = (i == mod.paintLayerIndex) ? 1f : 0f;
+                        }
                     }
                 }
             }
         }
-        terrainData.SetAlphamaps(xStart, zStart, alphamaps);
+        terrainData.SetAlphamaps(minX, minZ, alphamaps);
     }
 }
