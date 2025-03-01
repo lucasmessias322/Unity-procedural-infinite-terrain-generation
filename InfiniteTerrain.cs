@@ -1,19 +1,9 @@
 
+
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
-
-[System.Serializable]
-public class GlobalLayerDefinition
-{
-    public TerrainLayer terrainLayer;
-    public float minHeight; // minimum height for application
-    public float maxHeight; // maximum height for application
-    public float minSlope;  // minimum slope
-    public float maxSlope;  // maximum slope
-    // Additional settings can be added here...
-}
 
 [RequireComponent(typeof(TerrainObjectSpawner))]
 public class InfiniteTerrain : MonoBehaviour
@@ -72,7 +62,6 @@ public class InfiniteTerrain : MonoBehaviour
             return;
         }
         Instance = this;
-
     }
 
     void Update()
@@ -174,7 +163,6 @@ public class InfiniteTerrain : MonoBehaviour
         // Determina o bioma predominante para este chunk (usando a posição central)
         BiomeDefinition centerBiome = GetBiomeAtPosition(chunkWorldPos);
 
-        // Aqui usamos as layers definidas no bioma central e as globais
         int biomeLayerCount = (centerBiome.terrainLayerDefinitions != null ? centerBiome.terrainLayerDefinitions.Length : 0);
         int globalLayerCount = (globalLayerDefinitions != null ? globalLayerDefinitions.Length : 0);
         int totalLayers = biomeLayerCount + globalLayerCount;
@@ -182,70 +170,12 @@ public class InfiniteTerrain : MonoBehaviour
         var result = await Task.Run(() =>
         {
             // Gera alturas com blending entre biomas
-            float[,] heights = GenerateHeights(chunkWorldPos);
+            float[,] heights = GenerateHeightMap(chunkWorldPos);
             float[,,] splatmapData = null;
 
             if (totalLayers > 0)
             {
-                splatmapData = new float[alphamapResolution, alphamapResolution, totalLayers];
-                for (int z = 0; z < alphamapResolution; z++)
-                {
-                    for (int x = 0; x < alphamapResolution; x++)
-                    {
-                        float heightNormalized = heights[z, x];
-                        float worldHeight = heightNormalized * terrainHeight;
-                        float slope = CalculateSlope(heights, x, z);
-
-                        float totalWeight = 0f;
-                        float[] weights = new float[totalLayers];
-
-                        // Calcula os pesos para as layers do bioma central
-                        for (int i = 0; i < biomeLayerCount; i++)
-                        {
-                            TerrainLayerDefinition def = centerBiome.terrainLayerDefinitions[i];
-                            float weight = 1f;
-                            if (worldHeight < def.minHeight || worldHeight > def.maxHeight)
-                                weight = 0f;
-                            if (slope < def.minSlope || slope > def.maxSlope)
-                                weight = 0f;
-                            weights[i] = weight;
-                            totalWeight += weight;
-                        }
-
-                        // Calcula os pesos para as layers globais
-                        for (int i = 0; i < globalLayerCount; i++)
-                        {
-                            GlobalLayerDefinition globalDef = globalLayerDefinitions[i];
-                            float weight = 1f;
-                            if (worldHeight < globalDef.minHeight || worldHeight > globalDef.maxHeight)
-                                weight = 0f;
-                            if (slope < globalDef.minSlope || slope > globalDef.maxSlope)
-                                weight = 0f;
-                            weights[biomeLayerCount + i] = weight;
-                            totalWeight += weight;
-                        }
-
-                        // Fallback: se nenhum peso foi atribuído, usa a primeira layer disponível
-                        if (totalWeight == 0f)
-                        {
-                            if (biomeLayerCount > 0)
-                            {
-                                weights[0] = 1f;
-                                totalWeight = 1f;
-                            }
-                            else if (globalLayerCount > 0)
-                            {
-                                weights[biomeLayerCount] = 1f;
-                                totalWeight = 1f;
-                            }
-                        }
-
-                        for (int i = 0; i < totalLayers; i++)
-                        {
-                            splatmapData[z, x, i] = weights[i] / totalWeight;
-                        }
-                    }
-                }
+                splatmapData = GenerateSplatmapData(heights, centerBiome, globalLayerDefinitions);
             }
 
             return (heights, splatmapData);
@@ -354,22 +284,20 @@ public class InfiniteTerrain : MonoBehaviour
             }
             if (neighborLayerIndex >= 0)
             {
-                // Aplica o blend na alphamap para as bordas
-                //  BlendBorderWithNeighbor(ref splatmapDataResult, currentTotalLayers, neighborLayerIndex);
                 float minTransitionHeight = chunkInfo.neighborBiome.terrainLayerDefinitions[0].minHeight;
                 float maxTransitionHeight = chunkInfo.neighborBiome.terrainLayerDefinitions[0].maxHeight;
                 BlendBorderWithNeighbor(
-        ref splatmapDataResult,
-        currentTotalLayers,
-        neighborLayerIndex,
-        heightsResult,
-        terrainHeight,
-        minTransitionHeight,
-        maxTransitionHeight,
-        chunkInfo.blendNorth,
-        chunkInfo.blendEast,
-        chunkInfo.blendSouth,
-        chunkInfo.blendWest);
+                    ref splatmapDataResult,
+                    currentTotalLayers,
+                    neighborLayerIndex,
+                    heightsResult,
+                    terrainHeight,
+                    minTransitionHeight,
+                    maxTransitionHeight,
+                    chunkInfo.blendNorth,
+                    chunkInfo.blendEast,
+                    chunkInfo.blendSouth,
+                    chunkInfo.blendWest);
                 terrainData.SetAlphamaps(0, 0, splatmapDataResult);
             }
         }
@@ -380,7 +308,8 @@ public class InfiniteTerrain : MonoBehaviour
         }
     }
 
-    private float[,] GenerateHeights(Vector3 offset)
+    // Método para gerar o mapa de alturas do terreno
+    private float[,] GenerateHeightMap(Vector3 offset)
     {
         float[,] heights = new float[terrainResolution, terrainResolution];
         for (int x = 0; x < terrainResolution; x++)
@@ -396,6 +325,75 @@ public class InfiniteTerrain : MonoBehaviour
             }
         }
         return heights;
+    }
+
+    // Método para gerar os dados da splatmap usando os pesos das layers
+    private float[,,] GenerateSplatmapData(float[,] heights, BiomeDefinition biome, GlobalLayerDefinition[] globalLayers)
+    {
+        int biomeLayerCount = (biome.terrainLayerDefinitions != null ? biome.terrainLayerDefinitions.Length : 0);
+        int globalLayerCount = (globalLayers != null ? globalLayers.Length : 0);
+        int totalLayers = biomeLayerCount + globalLayerCount;
+        float[,,] splatmapData = new float[alphamapResolution, alphamapResolution, totalLayers];
+
+        for (int z = 0; z < alphamapResolution; z++)
+        {
+            for (int x = 0; x < alphamapResolution; x++)
+            {
+                float heightNormalized = heights[z, x];
+                float worldHeight = heightNormalized * terrainHeight;
+                float slope = CalculateSlope(heights, x, z);
+
+                float totalWeight = 0f;
+                float[] weights = new float[totalLayers];
+
+                // Calcula os pesos para as layers do bioma
+                for (int i = 0; i < biomeLayerCount; i++)
+                {
+                    TerrainLayerDefinition def = biome.terrainLayerDefinitions[i];
+                    float weight = 1f;
+                    if (worldHeight < def.minHeight || worldHeight > def.maxHeight)
+                        weight = 0f;
+                    if (slope < def.minSlope || slope > def.maxSlope)
+                        weight = 0f;
+                    weights[i] = weight;
+                    totalWeight += weight;
+                }
+
+                // Calcula os pesos para as layers globais
+                for (int i = 0; i < globalLayerCount; i++)
+                {
+                    GlobalLayerDefinition globalDef = globalLayers[i];
+                    float weight = 1f;
+                    if (worldHeight < globalDef.minHeight || worldHeight > globalDef.maxHeight)
+                        weight = 0f;
+                    if (slope < globalDef.minSlope || slope > globalDef.maxSlope)
+                        weight = 0f;
+                    weights[biomeLayerCount + i] = weight;
+                    totalWeight += weight;
+                }
+
+                // Fallback: se nenhum peso foi atribuído, usa a primeira layer disponível
+                if (totalWeight == 0f)
+                {
+                    if (biomeLayerCount > 0)
+                    {
+                        weights[0] = 1f;
+                        totalWeight = 1f;
+                    }
+                    else if (globalLayerCount > 0)
+                    {
+                        weights[biomeLayerCount] = 1f;
+                        totalWeight = 1f;
+                    }
+                }
+
+                for (int i = 0; i < totalLayers; i++)
+                {
+                    splatmapData[z, x, i] = weights[i] / totalWeight;
+                }
+            }
+        }
+        return splatmapData;
     }
 
     private float ComputeBlendedHeight(float worldX, float worldZ)
@@ -543,17 +541,15 @@ public class InfiniteTerrain : MonoBehaviour
         return Mathf.Atan(gradient) * Mathf.Rad2Deg;
     }
 
-
-
     void UpdateNeighbors(Vector2Int coord, TerrainChunkInfo chunkInfo)
     {
         // Definindo as direções básicas
         Vector2Int[] directions = new Vector2Int[]
         {
-        new Vector2Int(0, 1),   // Norte
-        new Vector2Int(1, 0),   // Leste
-        new Vector2Int(0, -1),  // Sul
-        new Vector2Int(-1, 0)   // Oeste
+            new Vector2Int(0, 1),   // Norte
+            new Vector2Int(1, 0),   // Leste
+            new Vector2Int(0, -1),  // Sul
+            new Vector2Int(-1, 0)   // Oeste
         };
 
         foreach (Vector2Int direction in directions)
@@ -599,17 +595,17 @@ public class InfiniteTerrain : MonoBehaviour
     }
 
     void BlendBorderWithNeighbor(
-    ref float[,,] splatmapData,
-    int totalLayers,
-    int neighborLayerIndex,
-    float[,] heightMap,
-    float terrainHeight,
-    float minTransitionHeight,
-    float maxTransitionHeight,
-    bool blendNorth,
-    bool blendEast,
-    bool blendSouth,
-    bool blendWest)
+        ref float[,,] splatmapData,
+        int totalLayers,
+        int neighborLayerIndex,
+        float[,] heightMap,
+        float terrainHeight,
+        float minTransitionHeight,
+        float maxTransitionHeight,
+        bool blendNorth,
+        bool blendEast,
+        bool blendSouth,
+        bool blendWest)
     {
         int width = splatmapData.GetLength(1);
         int height = splatmapData.GetLength(0);
@@ -654,6 +650,4 @@ public class InfiniteTerrain : MonoBehaviour
             }
         }
     }
-
-
 }
