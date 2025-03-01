@@ -53,6 +53,14 @@ public class InfiniteTerrain : MonoBehaviour
 
     [Header("Global Layer Settings")]
     public GlobalLayerDefinition[] globalLayerDefinitions;
+    [Header("Transition Margin Settings")]
+    public int minBlendMargin = 30;
+    public int maxBlendMargin = 70;
+    public float blendMarginNoiseScale = 0.05f;
+
+    [Header("Transition Curve Settings")]
+    public float transitionCurveExponent = 2f; // Valores maiores deixam a curva mais acentuada.
+
 
     private void Awake()
     {
@@ -611,6 +619,8 @@ public class InfiniteTerrain : MonoBehaviour
 
 
     // Aplica o blend em apenas uma borda (lado) definido pelo BorderDirection
+    // Aplica o blend em apenas uma borda (lado) definido pelo BorderDirection
+    // com comprimento de margem variável e uma curva de transição não linear.
     void BlendBorderWithSide(
         ref float[,,] splatmapData,
         int totalLayers,
@@ -623,8 +633,8 @@ public class InfiniteTerrain : MonoBehaviour
     {
         int width = splatmapData.GetLength(1);
         int height = splatmapData.GetLength(0);
-        int blendMargin = 10; // Número de pixels para o blend
 
+        // Percorre cada pixel do splatmap
         for (int z = 0; z < height; z++)
         {
             for (int x = 0; x < width; x++)
@@ -633,23 +643,44 @@ public class InfiniteTerrain : MonoBehaviour
                 if (worldHeight < minTransitionHeight || worldHeight > maxTransitionHeight)
                     continue;
 
+                // Calcula um comprimento efetivo de margem para este pixel usando Perlin Noise
+                float noiseValue = Mathf.PerlinNoise(x * blendMarginNoiseScale, z * blendMarginNoiseScale);
+                int effectiveBlendMargin = Mathf.RoundToInt(Mathf.Lerp(minBlendMargin, maxBlendMargin, noiseValue));
+
                 float blendFactor = 0f;
-                if (direction == BorderDirection.North && z >= height - blendMargin)
-                    blendFactor = 1f - ((height - z - 1) / (float)blendMargin);
-                else if (direction == BorderDirection.South && z < blendMargin)
-                    blendFactor = 1f - (z / (float)blendMargin);
-                else if (direction == BorderDirection.East && x >= width - blendMargin)
-                    blendFactor = 1f - ((width - x - 1) / (float)blendMargin);
-                else if (direction == BorderDirection.West && x < blendMargin)
-                    blendFactor = 1f - (x / (float)blendMargin);
+                float t = 0f;
+
+                // Calcula a fração de transição (t) dependendo da direção e da distância em relação à borda
+                if (direction == BorderDirection.North && z >= height - effectiveBlendMargin)
+                {
+                    t = (height - z - 1) / (float)effectiveBlendMargin;
+                    blendFactor = 1f - Mathf.Pow(t, transitionCurveExponent);
+                }
+                else if (direction == BorderDirection.South && z < effectiveBlendMargin)
+                {
+                    t = z / (float)effectiveBlendMargin;
+                    blendFactor = 1f - Mathf.Pow(t, transitionCurveExponent);
+                }
+                else if (direction == BorderDirection.East && x >= width - effectiveBlendMargin)
+                {
+                    t = (width - x - 1) / (float)effectiveBlendMargin;
+                    blendFactor = 1f - Mathf.Pow(t, transitionCurveExponent);
+                }
+                else if (direction == BorderDirection.West && x < effectiveBlendMargin)
+                {
+                    t = x / (float)effectiveBlendMargin;
+                    blendFactor = 1f - Mathf.Pow(t, transitionCurveExponent);
+                }
 
                 if (blendFactor > 0f)
                 {
+                    // Aplica a interpolação entre o valor atual e o valor da layer vizinha
                     for (int layer = 0; layer < totalLayers; layer++)
                     {
                         float targetValue = (layer == neighborLayerIndex) ? 1f : 0f;
                         splatmapData[z, x, layer] = Mathf.Lerp(splatmapData[z, x, layer], targetValue, blendFactor);
                     }
+                    // Normaliza os valores para garantir que a soma seja 1
                     float sum = 0f;
                     for (int layer = 0; layer < totalLayers; layer++)
                         sum += splatmapData[z, x, layer];
@@ -662,4 +693,5 @@ public class InfiniteTerrain : MonoBehaviour
             }
         }
     }
+
 }
