@@ -10,15 +10,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0be917dfcb7eade4b95d2b0126db7b40, type: 3}
-  m_Name: Floresta 1
+  m_Name: Floresta 2
   m_EditorClassIdentifier: 
-  biomeType: 0
+  biomeType: 2
   highFrequencyScale: 0.004
   highFrequencyAmplitude: 50
   lowFrequencyScale: 0.0005
   lowFrequencyAmplitude: 70
   terrainLayerDefinitions:
-  - terrainLayer: {fileID: 8574412962073106934, guid: 7652dbca45f54b2428b5131140fb55de, type: 2}
+  - terrainLayer: {fileID: 8574412962073106934, guid: 05929a4aec087074ba39c7059d3324c2, type: 2}
     minHeight: 61
     maxHeight: 1000
     minSlope: 0
@@ -35,6 +35,6 @@ MonoBehaviour:
     minHeight: 0.2
     maxHeight: 0.5
     noiseSpread: 0.5
-    healthyColor: {r: 0.3490566, g: 0.30855283, b: 0.14653791, a: 1}
-    dryColor: {r: 0.34901962, g: 0.28410622, b: 0.14509805, a: 1}
+    healthyColor: {r: 0.17267601, g: 0.18039216, b: 0.08235294, a: 1}
+    dryColor: {r: 0.18039216, g: 0.17215869, b: 0.08235294, a: 1}
     grassPrototypeDensity: 2

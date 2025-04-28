@@ -1,7 +1,8 @@
 using UnityEngine;
 
 public class TerrainChunkInfo : MonoBehaviour
-{
+{   public bool TerrainCompletedGeneration;
+    public bool TerrainCompletedDecoration;
     public BiomeDefinition biome;
     public bool hasDifferentNeighbor;
     public bool hasMultipleDifferentNeighbors;

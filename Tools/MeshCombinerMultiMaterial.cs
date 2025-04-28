@@ -149,7 +149,7 @@ public class MeshCombinerMultiMaterial : MonoBehaviour
         combinedMesh.CombineMeshes(finalCombineInstances.ToArray(), false, false);
 
         // Cria um novo objeto para a mesh combinada e o coloca como filho deste objeto.
-        combinedObject = new GameObject("CombinedMesh");
+        combinedObject = new GameObject(gameObject.name + "_CombinedMesh");
         combinedObject.transform.parent = transform;
         combinedObject.transform.localPosition = Vector3.zero;
         combinedObject.transform.localRotation = Quaternion.identity;
