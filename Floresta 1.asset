@@ -18,7 +18,7 @@ MonoBehaviour:
   lowFrequencyScale: 0.0005
   lowFrequencyAmplitude: 70
   terrainLayerDefinitions:
-  - terrainLayer: {fileID: 8574412962073106934, guid: 7652dbca45f54b2428b5131140fb55de, type: 2}
+  - terrainLayer: {fileID: 8574412962073106934, guid: 4f578fafc038b3e47889d8591aeabb7a, type: 2}
     minHeight: 61
     maxHeight: 1000
     minSlope: 0
@@ -26,15 +26,15 @@ MonoBehaviour:
   grassDetailDefinition:
     grassRenderMode: 1
     grassPrefab: {fileID: 0}
-    grassTexture: {fileID: 2800000, guid: 2038a37a87e1eff4fa5efd69c9d1312e, type: 3}
+    grassTexture: {fileID: 2800000, guid: fa10a1004679e1e4d90320a099030997, type: 3}
     targetLayerIndex: 0
     threshold: 0.5
-    grassMapDensity: 400
-    minWidth: 0.2
-    maxWidth: 0.5
-    minHeight: 0.2
-    maxHeight: 0.5
+    grassMapDensity: 500
+    minWidth: 0.5
+    maxWidth: 1
+    minHeight: 0.5
+    maxHeight: 1
     noiseSpread: 0.5
-    healthyColor: {r: 0.3490566, g: 0.30855283, b: 0.14653791, a: 1}
-    dryColor: {r: 0.34901962, g: 0.28410622, b: 0.14509805, a: 1}
-    grassPrototypeDensity: 2
+    healthyColor: {r: 0.050980393, g: 0.16862746, b: 0.05490196, a: 1}
+    dryColor: {r: 0.078431375, g: 0.12156863, b: 0.09019608, a: 1}
+    grassPrototypeDensity: 3

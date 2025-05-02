@@ -9,4 +9,5 @@ public class GlobalLayerDefinition
     public float minSlope;  // minimum slope
     public float maxSlope;  // maximum slope
     // Additional settings can be added here...
+    
 }

@@ -32,7 +32,7 @@
 //     [Tooltip("Available biome definitions.")]
 //     public BiomeDefinition[] biomeDefinitions;
 
-//     [Header("Render Distance")]
+//     [Header("Render Distance (usado apenas no modo Infinito)")]
 //     public int renderDistance = 1;
 
 //     [Tooltip("Detail map resolution (higher value means more details).")]
@@ -45,13 +45,17 @@
 //     [Header("Alphamap")]
 //     public int alphamapResolution = 512;
 
-//     [Header("Chunk Limit")]
+//     [Header("Chunk Limit (usado apenas no modo Finito)")]
 //     public int maxChunkCount = 50;
 
 //     [Header("Terrain object spawner Settings")]
-
 //     public bool SpawnObjects;
 //     public TerrainObjectSpawner objectSpawner;
+
+//     // Flag para determinar se o terreno é infinito ou finito
+//     [Header("Terrain Mode")]
+//     [Tooltip("Se verdadeiro, o terreno é infinito; se falso, gera um número fixo de chunks.")]
+//     public bool infiniteTerrain = true;
 
 //     // Private fields for internal control
 //     private Dictionary<Vector2Int, Terrain> terrainChunks = new Dictionary<Vector2Int, Terrain>();
@@ -70,7 +74,6 @@
 //     public float transitionCurveExponent = 2f; // Valores maiores deixam a curva mais acentuada.
 
 //     [Header("Water Settings")]
-
 //     public bool SpawnWaterTile;
 //     public GameObject waterTilePrefab;
 //     public float WaterTileSize = 26.3f;
@@ -93,10 +96,24 @@
 //         objectSpawner.seed = seed;
 //     }
 
+//     private void Start()
+//     {
+//         if (!infiniteTerrain)
+//         {
+//             // No modo finito, gera todos os chunks de uma vez (limitados a no máximo maxChunkCount)
+//             GenerateAllChunks();
+//             // Garante que a fila esteja vazia para não gerar mais nada depois
+//             chunkQueue.Clear();
+//         }
+//     }
+
 //     void Update()
 //     {
-//         Vector2Int currentPlayerChunk = GetPlayerChunkCoord();
+//         // Se o modo infinito estiver desativado, não atualiza nada
+//         if (!infiniteTerrain)
+//             return;
 
+//         Vector2Int currentPlayerChunk = GetPlayerChunkCoord();
 //         if (currentPlayerChunk != lastPlayerChunkCoord)
 //         {
 //             UpdateChunks();
@@ -112,6 +129,7 @@
 //         );
 //     }
 
+//     // Método para o modo infinito (mantém o comportamento original)
 //     void UpdateChunks()
 //     {
 //         // Remove chunks nulos
@@ -146,6 +164,7 @@
 //         LimitChunks();
 //     }
 
+//     // Limita os chunks existentes (modo infinito)
 //     void LimitChunks()
 //     {
 //         if (terrainChunks.Count <= maxChunkCount)
@@ -168,9 +187,27 @@
 //             if (terrainChunks.TryGetValue(keyToRemove, out Terrain terrain))
 //             {
 //                 Destroy(terrain.gameObject);
-//                 ///grid.UpdateGrid();
 //             }
 //             terrainChunks.Remove(keyToRemove);
+//         }
+//     }
+
+//     // Geração de todos os chunks de uma vez no modo finito
+//     void GenerateAllChunks()
+//     {
+//         Vector2Int centerChunk = GetPlayerChunkCoord();
+//         // Calcula uma grid aproximada (d x d) que não ultrapasse maxChunkCount
+//         int gridDimension = Mathf.FloorToInt(Mathf.Sqrt(maxChunkCount));
+//         int halfGrid = gridDimension / 2;
+
+//         for (int x = -halfGrid; x <= halfGrid; x++)
+//         {
+//             for (int z = -halfGrid; z <= halfGrid; z++)
+//             {
+//                 Vector2Int chunkCoord = new Vector2Int(centerChunk.x + x, centerChunk.y + z);
+//                 // Geração imediata sem enfileiramento nem delay
+//                 CreateChunkAsync(chunkCoord);
+//             }
 //         }
 //     }
 
@@ -200,50 +237,21 @@
 //         {
 //             float[,] heights = GenerateHeightMap(chunkWorldPos);
 //             float[,,] splatmapData = null;
-
 //             if (totalLayers > 0)
 //             {
 //                 splatmapData = GenerateSplatmapData(heights, centerBiome, globalLayerDefinitions);
 //             }
-
 //             return (heights, splatmapData);
 //         });
 
 //         float[,] heightsResult = result.heights;
 //         float[,,] splatmapDataResult = result.splatmapData;
 
+//         // Cria o TerrainData e configura suas propriedades através do método auxiliar.
 //         TerrainData terrainData = new TerrainData();
-//         terrainData.heightmapResolution = terrainResolution;
-//         terrainData.size = new Vector3(chunkSize, terrainHeight, chunkSize);
-//         terrainData.alphamapResolution = alphamapResolution;
-//         terrainData.wavingGrassStrength = wavingGrassStrength;
-//         terrainData.wavingGrassAmount = wavingGrassAmount;
-//         terrainData.wavingGrassTint = wavingGrassTint;
-//         terrainData.wavingGrassSpeed = 0;
+//         ConfigureTerrainData(terrainData, heightsResult, splatmapDataResult, centerBiome, globalLayerDefinitions);
 
-//         terrainData.SetHeights(0, 0, heightsResult);
-
-//         if (totalLayers > 0)
-//         {
-//             TerrainLayer[] layers = new TerrainLayer[totalLayers];
-//             // Layers do bioma central
-//             for (int i = 0; i < biomeLayerCount; i++)
-//             {
-//                 layers[i] = centerBiome.terrainLayerDefinitions[i].terrainLayer;
-//             }
-//             // Layers globais
-//             for (int i = 0; i < globalLayerCount; i++)
-//             {
-//                 layers[biomeLayerCount + i] = globalLayerDefinitions[i].terrainLayer;
-//             }
-//             terrainData.terrainLayers = layers;
-//             terrainData.SetAlphamaps(0, 0, splatmapDataResult);
-//         }
-
-
-
-
-
+//         // Cria o GameObject do terreno e posiciona-o
 //         GameObject terrainObj = Terrain.CreateTerrainGameObject(terrainData);
 //         terrainObj.tag = terrainTag;
 //         terrainObj.layer = LayerMask.NameToLayer(terrainLayerName);
@@ -257,18 +265,13 @@
 
 //         ApplyGrassDetails(terrainData, splatmapDataResult, centerBiome, chunkInfo);
 
-
 //         if (waterTilePrefab != null && SpawnWaterTile)
 //         {
-//             // Posiciona o tile de água no centro do chunk, com Y = 50
+//             // Posiciona o tile de água no centro do chunk, com Y = waterHeight
 //             Vector3 waterPosition = new Vector3(chunkWorldPos.x + chunkSize / 2, waterHeight, chunkWorldPos.z + chunkSize / 2);
 //             GameObject waterTile = Instantiate(waterTilePrefab, waterPosition, Quaternion.identity, terrainObj.transform);
-
-//             // Ajusta a escala para que o tile cubra todo o chunk (dividindo pelo tamanho do mesh padrão, que geralmente é 10)
 //             waterTile.transform.localScale = new Vector3(WaterTileSize, 1, WaterTileSize);
 //         }
-
-
 
 //         // Adiciona o chunk à lista (garante que ele esteja no dicionário)
 //         if (!terrainChunks.ContainsKey(coord))
@@ -281,18 +284,59 @@
 //         if (objectSpawner != null && SpawnObjects)
 //         {
 //             StartCoroutine(objectSpawner.SpawnObjectsOnChunkCoroutine(terrain, chunkWorldPos, terrainObj, chunkSize));
-
-
 //         }
 
 //         if (MobSpawnerPrefab != null && SpawnMobSpawner)
 //         {
-//             var mobSpawner = Instantiate(MobSpawnerPrefab, chunkWorldPos, Quaternion.identity, terrainObj.transform).GetComponent<MobSpawner>();
+//             var mobSpawner = Instantiate(MobSpawnerPrefab, chunkWorldPos, Quaternion.identity, terrainObj.transform)
+//                 .GetComponent<MobSpawner>();
 //             mobSpawner.terrain = terrain;
 //             mobSpawner.player = player;
 //         }
-
 //     }
+
+//     // Método auxiliar para configurar os dados do TerrainData, separando a definição das Layers.
+//     private void ConfigureTerrainData(
+//         TerrainData terrainData,
+//         float[,] heightsResult,
+//         float[,,] splatmapDataResult,
+//         BiomeDefinition centerBiome,
+//         GlobalLayerDefinition[] globalLayers)
+//     {
+//         int biomeLayerCount = (centerBiome.terrainLayerDefinitions != null ? centerBiome.terrainLayerDefinitions.Length : 0);
+//         int globalLayerCount = (globalLayers != null ? globalLayers.Length : 0);
+//         int totalLayers = biomeLayerCount + globalLayerCount;
+
+//         terrainData.heightmapResolution = terrainResolution;
+//         terrainData.size = new Vector3(chunkSize, terrainHeight, chunkSize);
+//         terrainData.alphamapResolution = alphamapResolution;
+//         terrainData.wavingGrassStrength = wavingGrassStrength;
+//         terrainData.wavingGrassAmount = wavingGrassAmount;
+//         terrainData.wavingGrassTint = wavingGrassTint;
+//         terrainData.wavingGrassSpeed = 0;
+
+//         terrainData.SetHeights(0, 0, heightsResult);
+
+//         if (totalLayers > 0)
+//         {
+//             TerrainLayer[] layers = new TerrainLayer[totalLayers];
+
+//             // Layers do bioma central
+//             for (int i = 0; i < biomeLayerCount; i++)
+//             {
+//                 layers[i] = centerBiome.terrainLayerDefinitions[i].terrainLayer;
+//             }
+//             // Layers globais
+//             for (int i = 0; i < globalLayerCount; i++)
+//             {
+//                 layers[biomeLayerCount + i] = globalLayers[i].terrainLayer;
+//             }
+
+//             terrainData.terrainLayers = layers;
+//             terrainData.SetAlphamaps(0, 0, splatmapDataResult);
+//         }
+//     }
+
 
 //     // Expande o splatmap para incluir um novo canal (layer)
 //     float[,,] ExpandSplatmapChannels(float[,,] splatmapData, int newTotalLayers)
@@ -449,6 +493,34 @@
 //     }
 
 
+//     private float ComputeBlendedHeight(float worldX, float worldZ)
+//     {
+//         float bn = Mathf.PerlinNoise((worldX + seed) * biomeNoiseScale, (worldZ + seed) * biomeNoiseScale);
+
+//         float wDesert = 1f - Mathf.InverseLerp(0.2f, 0.3f, bn);
+//         float wForest = 1f - Mathf.Abs(bn - 0.5f) / 0.2f;
+//         float wTundra = Mathf.InverseLerp(0.7f, 0.8f, bn);
+
+//         wDesert = Mathf.Max(0, wDesert);
+//         wForest = Mathf.Max(0, wForest);
+//         wTundra = Mathf.Max(0, wTundra);
+
+//         float total = wDesert + wForest + wTundra;
+//         wDesert /= total;
+//         wForest /= total;
+//         wTundra /= total;
+
+//         BiomeDefinition desert = GetBiomeByType(BiomeType.Desert);
+//         BiomeDefinition forest = GetBiomeByType(BiomeType.Forest);
+//         BiomeDefinition tundra = GetBiomeByType(BiomeType.Tundra);
+
+//         float hDesert = CalculateHeight(worldX, worldZ, desert);
+//         float hForest = CalculateHeight(worldX, worldZ, forest);
+//         float hTundra = CalculateHeight(worldX, worldZ, tundra);
+
+//         return wDesert * hDesert + wForest * hForest + wTundra * hTundra;
+//     }
+
 // }
 
 using System;
@@ -536,6 +608,9 @@ public partial class InfiniteTerrain : MonoBehaviour
     public bool SpawnMobSpawner;
     public GameObject MobSpawnerPrefab;
 
+    // Offset gerado a partir da seed para alterar as posições amostradas no Perlin Noise
+    private Vector2 noiseOffset;
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -547,6 +622,12 @@ public partial class InfiniteTerrain : MonoBehaviour
 
         player = GameObject.FindGameObjectWithTag("Player").transform;
         objectSpawner.seed = seed;
+
+        // Inicializa a seed e gera um offset aleatório para o ruído
+        UnityEngine.Random.InitState(seed);
+        float offsetX = UnityEngine.Random.Range(-10000f, 10000f);
+        float offsetY = UnityEngine.Random.Range(-10000f, 10000f);
+        noiseOffset = new Vector2(offsetX, offsetY);
     }
 
     private void Start()
@@ -790,7 +871,6 @@ public partial class InfiniteTerrain : MonoBehaviour
         }
     }
 
-
     // Expande o splatmap para incluir um novo canal (layer)
     float[,,] ExpandSplatmapChannels(float[,,] splatmapData, int newTotalLayers)
     {
@@ -910,7 +990,8 @@ public partial class InfiniteTerrain : MonoBehaviour
 
     private BiomeDefinition GetBiomeAtPosition(Vector3 pos)
     {
-        float bn = Mathf.PerlinNoise((pos.x + seed) * biomeNoiseScale, (pos.z + seed) * biomeNoiseScale);
+        // Utiliza o noiseOffset gerado a partir da seed
+        float bn = Mathf.PerlinNoise((pos.x + noiseOffset.x) * biomeNoiseScale, (pos.z + noiseOffset.y) * biomeNoiseScale);
         if (bn < 0.33f)
             return GetBiomeByType(BiomeType.Desert);
         else if (bn < 0.66f)
@@ -921,8 +1002,9 @@ public partial class InfiniteTerrain : MonoBehaviour
 
     float CalculateHeight(float worldX, float worldZ, BiomeDefinition biome)
     {
-        float y = Mathf.PerlinNoise((worldX + seed) * biome.highFrequencyScale, (worldZ + seed) * biome.highFrequencyScale) * biome.highFrequencyAmplitude;
-        y += Mathf.PerlinNoise((worldX + seed) * biome.lowFrequencyScale, (worldZ + seed) * biome.lowFrequencyScale) * biome.lowFrequencyAmplitude;
+        // Aplica o offset aqui também
+        float y = Mathf.PerlinNoise((worldX + noiseOffset.x) * biome.highFrequencyScale, (worldZ + noiseOffset.y) * biome.highFrequencyScale) * biome.highFrequencyAmplitude;
+        y += Mathf.PerlinNoise((worldX + noiseOffset.x) * biome.lowFrequencyScale, (worldZ + noiseOffset.y) * biome.lowFrequencyScale) * biome.lowFrequencyAmplitude;
         return y;
     }
 
@@ -943,5 +1025,34 @@ public partial class InfiniteTerrain : MonoBehaviour
         float dZ = (heightU - heightD) / (2f * cellSize);
         float gradient = Mathf.Sqrt(dX * dX + dZ * dZ);
         return Mathf.Atan(gradient) * Mathf.Rad2Deg;
+    }
+
+    private float ComputeBlendedHeight(float worldX, float worldZ)
+    {
+        // Utiliza o offset gerado a partir da seed
+        float bn = Mathf.PerlinNoise((worldX + noiseOffset.x) * biomeNoiseScale, (worldZ + noiseOffset.y) * biomeNoiseScale);
+
+        float wDesert = 1f - Mathf.InverseLerp(0.2f, 0.3f, bn);
+        float wForest = 1f - Mathf.Abs(bn - 0.5f) / 0.2f;
+        float wTundra = Mathf.InverseLerp(0.7f, 0.8f, bn);
+
+        wDesert = Mathf.Max(0, wDesert);
+        wForest = Mathf.Max(0, wForest);
+        wTundra = Mathf.Max(0, wTundra);
+
+        float total = wDesert + wForest + wTundra;
+        wDesert /= total;
+        wForest /= total;
+        wTundra /= total;
+
+        BiomeDefinition desert = GetBiomeByType(BiomeType.Desert);
+        BiomeDefinition forest = GetBiomeByType(BiomeType.Forest);
+        BiomeDefinition tundra = GetBiomeByType(BiomeType.Tundra);
+
+        float hDesert = CalculateHeight(worldX, worldZ, desert);
+        float hForest = CalculateHeight(worldX, worldZ, forest);
+        float hTundra = CalculateHeight(worldX, worldZ, tundra);
+
+        return wDesert * hDesert + wForest * hForest + wTundra * hTundra;
     }
 }

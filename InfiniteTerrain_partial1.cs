@@ -7,34 +7,6 @@ using UnityEngine;
 public partial class InfiniteTerrain
 {
 
-    private float ComputeBlendedHeight(float worldX, float worldZ)
-    {
-        float bn = Mathf.PerlinNoise((worldX + seed) * biomeNoiseScale, (worldZ + seed) * biomeNoiseScale);
-
-        float wDesert = 1f - Mathf.InverseLerp(0.2f, 0.3f, bn);
-        float wForest = 1f - Mathf.Abs(bn - 0.5f) / 0.2f;
-        float wTundra = Mathf.InverseLerp(0.7f, 0.8f, bn);
-
-        wDesert = Mathf.Max(0, wDesert);
-        wForest = Mathf.Max(0, wForest);
-        wTundra = Mathf.Max(0, wTundra);
-
-        float total = wDesert + wForest + wTundra;
-        wDesert /= total;
-        wForest /= total;
-        wTundra /= total;
-
-        BiomeDefinition desert = GetBiomeByType(BiomeType.Desert);
-        BiomeDefinition forest = GetBiomeByType(BiomeType.Forest);
-        BiomeDefinition tundra = GetBiomeByType(BiomeType.Tundra);
-
-        float hDesert = CalculateHeight(worldX, worldZ, desert);
-        float hForest = CalculateHeight(worldX, worldZ, forest);
-        float hTundra = CalculateHeight(worldX, worldZ, tundra);
-
-        return wDesert * hDesert + wForest * hForest + wTundra * hTundra;
-    }
-
     // transiçao de biomas
     private void ApplyBiomeTransitionBlend(ref float[,,] splatmapData, TerrainData terrainData, TerrainChunkInfo chunkInfo, float[,] heights, float terrainHeight)
     {
