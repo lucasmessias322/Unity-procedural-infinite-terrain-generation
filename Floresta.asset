@@ -13,14 +13,10 @@ MonoBehaviour:
   m_Name: Floresta
   m_EditorClassIdentifier: 
   biomeType: 1
-  highFrequencyScale: 0.004
-  highFrequencyAmplitude: 50
-  lowFrequencyScale: 0.0005
-  lowFrequencyAmplitude: 70
   terrainLayerDefinitions:
   - terrainLayer: {fileID: 8574412962073106934, guid: b0335f68f79e8fe41bfac8cdd1777d92, type: 2}
     minHeight: 61
-    maxHeight: 1000
+    maxHeight: 70
     minSlope: 0
     maxSlope: 0
   grassDetailDefinition:
