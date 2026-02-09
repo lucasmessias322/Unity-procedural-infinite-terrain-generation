@@ -15,7 +15,7 @@ MonoBehaviour:
   biomeType: 1
   terrainLayerDefinitions:
   - terrainLayer: {fileID: 8574412962073106934, guid: d89b6494d9fbc994182207fed5df47a0, type: 2}
-    minHeight: 130
+    minHeight: 120
     maxHeight: 200
     minSlope: 0
     maxSlope: 20

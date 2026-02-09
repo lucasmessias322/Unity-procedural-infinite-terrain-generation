@@ -10,72 +10,60 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2652f6f77f5c053458e1ca2b4959cf35, type: 3}
-  m_Name: NoiseLayers
+  m_Name: NoiseLayers 1
   m_EditorClassIdentifier: Assembly-CSharp::NoiseLayersSO
   noiseLayers:
   - enabled: 1
-    scaleX: 0.0002
-    scaleY: 0.0002
-    amplitude: 100
+    scaleX: 0.0005
+    scaleY: 0.0005
+    amplitude: 80
     heightThreshold: 0
     blendDistance: 0
-    useOctaves: 1
-    octaves: 2
-    lacunarity: 0
-    persistence: 0
-    octaveOffset: {x: 0, y: 0}
+    octaves: 5
+    lacunarity: 2
+    persistence: 0.5
   - enabled: 1
-    scaleX: 0.001
-    scaleY: 0.001
+    scaleX: 0.0005
+    scaleY: 0.0005
     amplitude: 150
     heightThreshold: 0
     blendDistance: 0
-    useOctaves: 1
-    octaves: 4
-    lacunarity: 0
-    persistence: 0
-    octaveOffset: {x: 0, y: 0}
-  - enabled: 0
-    scaleX: 0.01
-    scaleY: 0.01
+    octaves: 6
+    lacunarity: 2
+    persistence: 0.5
+  - enabled: 1
+    scaleX: 0.02
+    scaleY: 0.02
     amplitude: 10
-    heightThreshold: 125
-    blendDistance: 500
-    useOctaves: 0
-    octaves: 0
-    lacunarity: 0
-    persistence: 0
-    octaveOffset: {x: 0, y: 0}
-  - enabled: 0
+    heightThreshold: 0
+    blendDistance: 0
+    octaves: 1
+    lacunarity: 4
+    persistence: 0.5
+  - enabled: 1
     scaleX: 0.01
     scaleY: 0.01
     amplitude: 2
-    heightThreshold: 120
+    heightThreshold: 140
     blendDistance: 500
-    useOctaves: 0
     octaves: 0
     lacunarity: 0
     persistence: 0
-    octaveOffset: {x: 0, y: 0}
-  - enabled: 1
+  - enabled: 0
     scaleX: 0.04
     scaleY: 0.04
     amplitude: 5
     heightThreshold: 0
     blendDistance: 0
-    useOctaves: 0
     octaves: 0
     lacunarity: 0
     persistence: 0
-    octaveOffset: {x: 0, y: 0}
-  - enabled: 1
+  - enabled: 0
     scaleX: 0.25
     scaleY: 0.25
     amplitude: 0.5
     heightThreshold: 0
     blendDistance: 0
-    useOctaves: 0
     octaves: 0
     lacunarity: 0
     persistence: 0
-    octaveOffset: {x: 0, y: 0}

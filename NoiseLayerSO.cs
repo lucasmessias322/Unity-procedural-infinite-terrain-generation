@@ -24,9 +24,10 @@ public struct NoiseLayer
 
 
     // --- NOVOS campos para octaves ---
-    public bool useOctaves;     // ativa octaves
-    public int octaves;         // número de octaves (>=1)
-    public float lacunarity;    // frequência aumenta por lacunarity (ex: 2.0)
-    public float persistence;   // amplitude multiplica por persistence (ex: 0.5)
-    public Vector2 octaveOffset; // deslocamento por camada (útil pra evitar alinhamento)
+    [Header("Octaves")]
+    public int octaves;          // ex: 4
+    public float lacunarity;     // ex: 2.0
+    public float persistence;    // ex: 0.5
+
+    
 }

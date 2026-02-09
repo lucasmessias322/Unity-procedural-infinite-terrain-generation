@@ -980,8 +980,9 @@ public class InfiniteTerrain : MonoBehaviour
                 if (!layer.enabled)
                     continue;
 
-                float n = Mathf.PerlinNoise(worldX * layer.scaleX, worldZ * layer.scaleY);
+                float n = FractalPerlin(worldX, worldZ, layer);
                 float contribution = n * layer.amplitude;
+
 
                 bool applyLayer = false;
 
@@ -1017,6 +1018,40 @@ public class InfiniteTerrain : MonoBehaviour
 
             return Mathf.Clamp(heightSum, -10000f, 10000f);
         }
+
+        private float FractalPerlin(
+    float x,
+    float z,
+    NoiseLayer layer
+)
+        {
+            float value = 0f;
+            float amplitude = 1f;
+            float frequency = 1f;
+            float maxValue = 0f;
+
+            int octaves = Mathf.Max(1, layer.octaves);
+
+            for (int i = 0; i < octaves; i++)
+            {
+                float seedOffset = (i + 1) * 37.13f;
+
+                float nx = (x + seedOffset) * layer.scaleX * frequency;
+                float nz = (z + seedOffset) * layer.scaleY * frequency;
+
+
+                float perlin = Mathf.PerlinNoise(nx, nz);
+                value += perlin * amplitude;
+
+                maxValue += amplitude;
+
+                amplitude *= layer.persistence;
+                frequency *= layer.lacunarity;
+            }
+
+            return value / maxValue; // normaliza 0–1
+        }
+
 
     }
 
