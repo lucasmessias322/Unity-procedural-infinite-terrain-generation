@@ -9,38 +9,35 @@ public class MeshCombinerMultiMaterial : MonoBehaviour
 
     public GameObject combinedObject;
 
+    public enum PivotMode { Center, TopCenter, BottomCenter }
+    public PivotMode pivotMode = PivotMode.Center;
+
     [ContextMenu("Combine Meshes")]
     public void CombineMeshes()
     {
-        // Obtém a matriz que transforma do espaço mundial para o espaço local do pai.
         Matrix4x4 parentInverseMatrix = transform.worldToLocalMatrix;
 
-        // Pega todos os MeshFilters e LODGroups dos filhos.
         MeshFilter[] meshFilters = GetComponentsInChildren<MeshFilter>();
         LODGroup[] lodGroups = GetComponentsInChildren<LODGroup>();
 
-        // Usaremos um HashSet para marcar quais objetos já foram processados (via LODGroup).
         HashSet<GameObject> processedObjects = new HashSet<GameObject>();
 
         List<Material> materials = new List<Material>();
         List<List<CombineInstance>> subMeshCombineInstances = new List<List<CombineInstance>>();
 
-        // 1. Processa objetos com LODGroup.
+        // --- Processa LODGroups ---
         foreach (LODGroup lodGroup in lodGroups)
         {
             LOD[] lods = lodGroup.GetLODs();
             if (lods.Length > 0)
             {
-                // Seleciona o LOD0 (mais detalhado).
                 foreach (Renderer renderer in lods[0].renderers)
                 {
                     MeshFilter mf = renderer.GetComponent<MeshFilter>();
                     if (mf != null && mf.sharedMesh != null)
                     {
-                        // Marca o objeto para não processá-lo novamente.
                         processedObjects.Add(mf.gameObject);
 
-                        // Cria uma cópia da malha se ela não for legível.
                         Mesh mesh = mf.sharedMesh;
                         if (!mesh.isReadable)
                         {
@@ -72,13 +69,11 @@ public class MeshCombinerMultiMaterial : MonoBehaviour
             }
         }
 
-        // 2. Processa os MeshFilters que não fazem parte de um LODGroup.
+        // --- Processa MeshFilters normais ---
         foreach (MeshFilter mf in meshFilters)
         {
-            // Ignora o MeshFilter do próprio objeto que possui este script.
             if (mf == GetComponent<MeshFilter>())
                 continue;
-            // Se já foi processado via LODGroup, pula.
             if (processedObjects.Contains(mf.gameObject))
                 continue;
             if (mf.sharedMesh == null)
@@ -88,7 +83,6 @@ public class MeshCombinerMultiMaterial : MonoBehaviour
             if (renderer == null || renderer.sharedMaterials.Length == 0)
                 continue;
 
-            // Cria uma cópia da malha se necessário.
             Mesh mesh = mf.sharedMesh;
             if (!mesh.isReadable)
             {
@@ -123,7 +117,6 @@ public class MeshCombinerMultiMaterial : MonoBehaviour
             return;
         }
 
-        // Cria a mesh combinada com suporte a mais de 65.535 vértices.
         Mesh combinedMesh = new Mesh();
         combinedMesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
         combinedMesh.subMeshCount = materials.Count;
@@ -148,10 +141,35 @@ public class MeshCombinerMultiMaterial : MonoBehaviour
 
         combinedMesh.CombineMeshes(finalCombineInstances.ToArray(), false, false);
 
-        // Cria um novo objeto para a mesh combinada e o coloca como filho deste objeto.
+        // --- Ajusta o pivot ---
+        Bounds bounds = combinedMesh.bounds;
+        Vector3 pivotOffset = Vector3.zero;
+
+        switch (pivotMode)
+        {
+            case PivotMode.Center:
+                pivotOffset = bounds.center;
+                break;
+            case PivotMode.BottomCenter:
+                pivotOffset = new Vector3(bounds.center.x, bounds.min.y, bounds.center.z);
+                break;
+            case PivotMode.TopCenter:
+                pivotOffset = new Vector3(bounds.center.x, bounds.max.y, bounds.center.z);
+                break;
+        }
+
+        Vector3[] vertices = combinedMesh.vertices;
+        for (int i = 0; i < vertices.Length; i++)
+        {
+            vertices[i] -= pivotOffset;
+        }
+        combinedMesh.vertices = vertices;
+        combinedMesh.RecalculateBounds();
+
+        // Cria o objeto final
         combinedObject = new GameObject(gameObject.name + "_CombinedMesh");
         combinedObject.transform.parent = transform;
-        combinedObject.transform.localPosition = Vector3.zero;
+        combinedObject.transform.localPosition = pivotOffset;
         combinedObject.transform.localRotation = Quaternion.identity;
         combinedObject.transform.localScale = Vector3.one;
 
@@ -162,14 +180,12 @@ public class MeshCombinerMultiMaterial : MonoBehaviour
         meshRenderer.sharedMaterials = materials.ToArray();
 
 #if UNITY_EDITOR
-        // Cria a pasta "CombinedMeshes" dentro de "Assets", se ela ainda não existir.
         string folderPath = "Assets/CombinedMeshes";
         if (!AssetDatabase.IsValidFolder(folderPath))
         {
             AssetDatabase.CreateFolder("Assets", "CombinedMeshes");
         }
 
-        // Define o caminho para salvar o asset.
         string assetPath = folderPath + "/" + combinedObject.name + ".asset";
         AssetDatabase.CreateAsset(combinedMesh, assetPath);
         AssetDatabase.SaveAssets();
@@ -177,7 +193,6 @@ public class MeshCombinerMultiMaterial : MonoBehaviour
         Debug.Log("Mesh combinada salva em: " + assetPath);
 #endif
 
-        // Se desejado, destrói os objetos originais.
         if (destroyOriginals)
         {
             foreach (MeshFilter mf in meshFilters)
@@ -187,7 +202,6 @@ public class MeshCombinerMultiMaterial : MonoBehaviour
             }
         }
 
-        // Ou os desativa.
         if (desactiveOriginals)
         {
             foreach (MeshFilter mf in meshFilters)
